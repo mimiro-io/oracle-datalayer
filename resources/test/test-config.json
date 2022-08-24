@@ -1,0 +1,95 @@
+{
+  "id": "test-import",
+  "databaseServer": "localhost",
+  "baseUri": "http://data.test.io/testnamespace/",
+  "database": "test_database",
+  "port": 1521,
+  "schema": "ANIMAL",
+  "baseNameSpace": "http://data.test.io/newtestnamespace/",
+  "user": "animal",
+  "password": "test1234",
+  "serviceName":"ORCL",
+  "postMappings": [
+    {
+      "datasetName": "datahub.Testdata",
+      "tableName": "Testdata",
+      "idColumn": "ID",
+      "query": "BEGIN INSERT INTO TESTDATA (ID, FOO, BAR) VALUES (:1, :2, :3); EXCEPTION WHEN DUP_VAL_ON_INDEX THEN UPDATE TESTDATA SET FOO=:2, BAR=:3 WHERE ID = :1; END;",
+      "fieldMappings": [
+        {
+          "fieldName": "id",
+          "order": 1,
+          "type": "varchar2(255)"
+        },
+        {
+          "fieldName": "foo",
+          "order": 2,
+          "type": "number"
+        },
+        {
+          "fieldName": "bar",
+          "order": 3,
+          "type": "varchar2(255)"
+        }
+      ]
+    }
+  ],
+  "tableMappings": [
+    {
+      "tableName": "ANIMAL_TABLE",
+      "nameSpace": "animal",
+      "entityIdConstructor": "animal/%s",
+      "types": [
+        "http://data.test.io/newtestnamespace/Animal"
+      ],
+      "columnMappings": [
+        {
+          "fieldName": "ID",
+          "isIdColumn": true
+        }
+      ]
+    },
+    {
+      "tableName": "FIND.TABLES",
+      "nameSpace": "animal",
+      "entityIdConstructor": "animal/%s",
+      "types": [
+        "http://data.test.io/newtestnamespace/Animal"
+      ],
+      "columnMappings": [
+        {
+          "fieldName": "TABLE_NAME",
+          "isIdColumn": true
+        }
+      ]
+    },
+    {
+      "tableName": "order",
+      "nameSpace": "order",
+      "entityIdConstructor": "order/%s",
+      "types": [
+        "http://data.test.io/newtestnamespace/Order"
+      ],
+      "columnMappings": [
+        {
+          "fieldName": "orderId",
+          "isIdColumn": true
+        }
+      ]
+    },
+    {
+      "tableName": "customer",
+      "nameSpace": "customer",
+      "entityIdConstructor": "customer/%s",
+      "types": [
+        "http://data.test.io/newtestnamespace/Customer"
+      ],
+      "columnMappings": [
+        {
+          "fieldName": "customerId",
+          "isIdColumn": true
+        }
+      ]
+    }
+  ]
+}
