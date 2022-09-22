@@ -1,12 +1,13 @@
 package middlewares
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/golang-jwt/jwt"
 	"github.com/juliangruber/go-intersect"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
-	"net/http"
-	"strings"
 )
 
 func Authorize(logger *zap.SugaredLogger, scopes ...string) echo.MiddlewareFunc {
@@ -25,7 +26,7 @@ func Authorize(logger *zap.SugaredLogger, scopes ...string) echo.MiddlewareFunc 
 				if len(claims.scopes()) > 0 {
 					claimScopes = strings.Split(claims.scopes()[0], " ")
 				}
-				res := intersect.Simple(claimScopes, scopes).([]interface{})
+				res := intersect.Simple(claimScopes, scopes)
 				if len(res) == 0 { // no intersection
 					logger.Debugw("User attempted login with missing or wrong scope",
 						"subject", token.Claims.(*CustomClaims).Subject,
