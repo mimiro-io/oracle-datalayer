@@ -35,7 +35,10 @@ func NewPostLayer(lc fx.Lifecycle, cmgr *conf.ConfigurationManager, logger *zap.
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
 			if postLayer.PostRepo.DB != nil {
-				postLayer.PostRepo.DB.Close()
+				err := postLayer.PostRepo.DB.Close()
+				if err != nil {
+					return err
+				}
 			}
 			return nil
 		},
@@ -145,6 +148,7 @@ func (postLayer *PostLayer) PostEntities(datasetName string, entities []*Entity)
 				return err
 			}
 		} else { //Should be deleted if it exists
+			postLayer.logger.Info(queryDel)
 			_, err := conn.Exec(queryDel, args[0])
 			if err != nil {
 				postLayer.logger.Error(err)

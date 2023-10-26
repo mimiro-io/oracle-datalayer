@@ -53,7 +53,10 @@ func NewLayer(lc fx.Lifecycle, cmgr *conf.ConfigurationManager, env *conf.Env) *
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
 			if layer.Repo.DB != nil {
-				layer.Repo.DB.Close()
+				err := layer.Repo.DB.Close()
+				if err != nil {
+					return err
+				}
 			}
 			return nil
 		},

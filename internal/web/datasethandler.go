@@ -92,24 +92,33 @@ func (handler *datasetHandler) getEntitiesHandler(c echo.Context) error {
 	c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	c.Response().WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(c.Response())
-	c.Response().Write([]byte("["))
+	_, err = c.Response().Write([]byte("["))
+	if err != nil {
+		return err
+	}
 
 	// make and send context as the first object
-	context := handler.layer.GetContext(datasetName)
+	ctx := handler.layer.GetContext(datasetName)
 
-	_ = enc.Encode(context)
+	_ = enc.Encode(ctx)
 
 	request := db.DatasetRequest{
 		DatasetName: datasetName,
 		Limit:       l,
 	}
-	handler.layer.ChangeSet(request, func(entity *layers.Entity) {
-		c.Response().Write([]byte(","))
+	err = handler.layer.ChangeSet(request, func(entity *layers.Entity) {
+		_, err = c.Response().Write([]byte(","))
 		_ = enc.Encode(entity)
 		c.Response().Flush()
 	})
+	if err != nil {
+		return err
+	}
 
-	c.Response().Write([]byte("]"))
+	_, err = c.Response().Write([]byte("]"))
+	if err != nil {
+		return err
+	}
 	c.Response().Flush()
 	return nil
 }
@@ -138,12 +147,15 @@ func (handler *datasetHandler) getChangesHandler(c echo.Context) error {
 	c.Response().WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(c.Response())
 
-	c.Response().Write([]byte("["))
+	_, err = c.Response().Write([]byte("["))
+	if err != nil {
+		return err
+	}
 
 	// make and send context as the first object
-	context := handler.layer.GetContext(datasetName)
+	ctx := handler.layer.GetContext(datasetName)
 
-	_ = enc.Encode(context)
+	_ = enc.Encode(ctx)
 
 	request := db.DatasetRequest{
 		DatasetName: datasetName,
@@ -157,18 +169,19 @@ func (handler *datasetHandler) getChangesHandler(c echo.Context) error {
 				"id":    "@continuation",
 				"token": entity.Properties["token"],
 			}
-			c.Response().Write([]byte(","))
+			_, err = c.Response().Write([]byte("["))
 			_ = enc.Encode(cont)
 			c.Response().Flush()
 		} else {
-			c.Response().Write([]byte(","))
+			_, err = c.Response().Write([]byte("["))
 			_ = enc.Encode(entity)
 			c.Response().Flush()
 		}
 	})
 
 	if err != nil {
-		handler.logger.Warn(err)
+		handler.logger.Error(err)
+
 	}
 
 	entity := map[string]interface{}{
@@ -176,10 +189,13 @@ func (handler *datasetHandler) getChangesHandler(c echo.Context) error {
 		"token": base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%o", time.Now().Unix()))),
 	}
 
-	c.Response().Write([]byte(","))
+	_, err = c.Response().Write([]byte("["))
 	_ = enc.Encode(entity)
-	c.Response().Write([]byte("]"))
+	_, err = c.Response().Write([]byte("["))
 	c.Response().Flush()
+	if err != nil {
+		handler.logger.Error(err)
+	}
 	return nil
 
 }
