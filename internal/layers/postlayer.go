@@ -148,7 +148,6 @@ func (postLayer *PostLayer) PostEntities(datasetName string, entities []*Entity)
 				return err
 			}
 		} else { //Should be deleted if it exists
-			postLayer.logger.Info(queryDel)
 			_, err := conn.Exec(queryDel, args[0])
 			if err != nil {
 				postLayer.logger.Error(err)
