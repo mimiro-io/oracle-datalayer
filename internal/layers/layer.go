@@ -238,7 +238,9 @@ func (l *Layer) connect(table *conf.TableMapping) (*sql.DB, error) {
 
 	db, err := sql.Open("oracle", u)
 	if err != nil {
-		panic(fmt.Errorf("error in sql.Open: %w", err))
+		//panic(fmt.Errorf("error in sql.Open: %w", err))
+		l.logger.Warn("Error creating connection pool: ", err.Error())
+		return nil, err
 	}
 	err = db.Ping()
 	if err != nil {
