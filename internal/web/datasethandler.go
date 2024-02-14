@@ -169,11 +169,11 @@ func (handler *datasetHandler) getChangesHandler(c echo.Context) error {
 				"id":    "@continuation",
 				"token": entity.Properties["token"],
 			}
-			_, err = c.Response().Write([]byte("["))
+			c.Response().Write([]byte(","))
 			_ = enc.Encode(cont)
 			c.Response().Flush()
 		} else {
-			_, err = c.Response().Write([]byte("["))
+			c.Response().Write([]byte(","))
 			_ = enc.Encode(entity)
 			c.Response().Flush()
 		}
@@ -189,13 +189,11 @@ func (handler *datasetHandler) getChangesHandler(c echo.Context) error {
 		"token": base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%o", time.Now().Unix()))),
 	}
 
-	_, err = c.Response().Write([]byte("["))
+	c.Response().Write([]byte(","))
 	_ = enc.Encode(entity)
-	_, err = c.Response().Write([]byte("["))
+	c.Response().Write([]byte("]"))
 	c.Response().Flush()
-	if err != nil {
-		handler.logger.Error(err)
-	}
+
 	return nil
 
 }
