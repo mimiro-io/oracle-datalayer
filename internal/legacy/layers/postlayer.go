@@ -6,7 +6,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"github.com/mimiro-io/oracle-datalayer/internal/conf"
+	conf2 "github.com/mimiro-io/oracle-datalayer/internal/legacy/conf"
 	go_ora "github.com/sijms/go-ora/v2"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -15,18 +15,18 @@ import (
 )
 
 type PostLayer struct {
-	cmgr     *conf.ConfigurationManager //
+	cmgr     *conf2.ConfigurationManager //
 	logger   *zap.SugaredLogger
 	PostRepo *PostRepository //exported because it needs to deferred from main??
 }
 type PostRepository struct {
 	DB           *sql.DB
 	ctx          context.Context
-	postTableDef *conf.PostMapping
+	postTableDef *conf2.PostMapping
 	digest       [16]byte
 }
 
-func NewPostLayer(lc fx.Lifecycle, cmgr *conf.ConfigurationManager, logger *zap.SugaredLogger) *PostLayer {
+func NewPostLayer(lc fx.Lifecycle, cmgr *conf2.ConfigurationManager, logger *zap.SugaredLogger) *PostLayer {
 	postLayer := &PostLayer{logger: logger.Named("layer")}
 	postLayer.cmgr = cmgr
 	postLayer.PostRepo = &PostRepository{
@@ -43,7 +43,7 @@ func NewPostLayer(lc fx.Lifecycle, cmgr *conf.ConfigurationManager, logger *zap.
 	return postLayer
 }
 
-func (postLayer *PostLayer) connect(table *conf.PostMapping) (*sql.DB, error) {
+func (postLayer *PostLayer) connect(table *conf2.PostMapping) (*sql.DB, error) {
 	//test with pure sql
 	u := postLayer.cmgr.Datalayer.GetPostUrl(table)
 
@@ -72,11 +72,8 @@ func (postLayer *PostLayer) PostEntities(datasetName string, entities []*Entity)
 	}
 
 	connString := postLayer.getConnString(postLayer.PostRepo.postTableDef)
-	conn, err := go_ora.NewConnection(connString)
-	if err != nil {
-		return err
-	}
-	err = conn.Open()
+	connector := go_ora.NewConnector(connString)
+	conn, err := connector.Connect(postLayer.PostRepo.ctx)
 	if err != nil {
 		return err
 	}
@@ -139,13 +136,23 @@ func (postLayer *PostLayer) PostEntities(datasetName string, entities []*Entity)
 			args[i] = s[field.FieldName]
 		}
 		if !entity.IsDeleted { //If is deleted True --> Do not store
-			_, err := conn.Exec(query, args...)
+			stmt, errStmt := conn.Prepare(query)
+			if errStmt != nil {
+				postLayer.logger.Error(errStmt)
+				return errStmt
+			}
+			_, err := stmt.Exec(args)
 			if err != nil {
 				postLayer.logger.Error(err)
 				return err
 			}
 		} else { //Should be deleted if it exists
-			_, err := conn.Exec(queryDel, args[0])
+			stmt, errStmt := conn.Prepare(queryDel)
+			if errStmt != nil {
+				postLayer.logger.Error(errStmt)
+				return errStmt
+			}
+			_, err := stmt.Exec(args[:1])
 			if err != nil {
 				postLayer.logger.Error(err)
 				return err
@@ -170,12 +177,12 @@ func (postLayer *PostLayer) PostEntities(datasetName string, entities []*Entity)
 	return nil
 }*/
 
-func (postLayer *PostLayer) getConnString(table *conf.PostMapping) string {
+func (postLayer *PostLayer) getConnString(table *conf2.PostMapping) string {
 	connString := postLayer.cmgr.Datalayer.GetPostUrl(table)
 	return connString
 }
 
-func (postLayer *PostLayer) GetTableDefinition(datasetName string) *conf.PostMapping {
+func (postLayer *PostLayer) GetTableDefinition(datasetName string) *conf2.PostMapping {
 	for _, table := range postLayer.cmgr.Datalayer.PostMappings {
 		if table.DatasetName == datasetName {
 			return table

@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/labstack/echo/v4"
-	"github.com/mimiro-io/oracle-datalayer/internal/db"
-	"github.com/mimiro-io/oracle-datalayer/internal/layers"
+	"github.com/mimiro-io/oracle-datalayer/internal/legacy/db"
+	layers2 "github.com/mimiro-io/oracle-datalayer/internal/legacy/layers"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"net/http"
@@ -29,10 +29,10 @@ type DatasetName struct {
 
 type datasetHandler struct {
 	logger *zap.SugaredLogger
-	layer  *layers.Layer
+	layer  *layers2.Layer
 }
 
-func NewDatasetHandler(lc fx.Lifecycle, e *echo.Echo, logger *zap.SugaredLogger, mw *Middleware, layer *layers.Layer) {
+func NewDatasetHandler(lc fx.Lifecycle, e *echo.Echo, logger *zap.SugaredLogger, mw *Middleware, layer *layers2.Layer) {
 	log := logger.Named("web")
 
 	dh := &datasetHandler{
@@ -103,7 +103,7 @@ func (handler *datasetHandler) getEntitiesHandler(c echo.Context) error {
 		DatasetName: datasetName,
 		Limit:       l,
 	}
-	handler.layer.ChangeSet(request, func(entity *layers.Entity) {
+	handler.layer.ChangeSet(request, func(entity *layers2.Entity) {
 		c.Response().Write([]byte(","))
 		_ = enc.Encode(entity)
 		c.Response().Flush()
@@ -151,7 +151,7 @@ func (handler *datasetHandler) getChangesHandler(c echo.Context) error {
 		Limit:       l,
 	}
 
-	err = handler.layer.ChangeSet(request, func(entity *layers.Entity) {
+	err = handler.layer.ChangeSet(request, func(entity *layers2.Entity) {
 		if entity.ID == "@continuation" { // it is returned as a normal entity, and we need to flatten it to the token format
 			cont := map[string]interface{}{
 				"id":    "@continuation",

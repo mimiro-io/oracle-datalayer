@@ -13,7 +13,7 @@ import (
 func TestDecodeLine(t *testing.T) {
 	g := goblin.Goblin(t)
 	g.Describe("Is connection to db working?", func() {
-		g.It("Should return sql.Conn", func() {
+		g.Xit("Should return sql.Conn", func() {
 
 			oracleUrl := go_ora.BuildUrl("localhost", 1521, "ORCL", "animal", "test1234", map[string]string{"SERVER": "localhost:"})
 

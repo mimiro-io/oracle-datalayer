@@ -2,7 +2,7 @@ package db
 
 import (
 	"fmt"
-	"github.com/mimiro-io/oracle-datalayer/internal/conf"
+	"github.com/mimiro-io/oracle-datalayer/internal/legacy/conf"
 )
 
 type DatasetRequest struct {

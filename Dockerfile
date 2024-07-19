@@ -23,7 +23,7 @@ WORKDIR /root/
 
 COPY --from=builder /app/server .
 ADD .env .
-ADD resources/default-config.json resources/
+ADD internal/legacy/resources/default-config.json resources/
 
 # Expose port 8080 to the outside world
 EXPOSE 8080
