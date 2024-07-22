@@ -3,7 +3,7 @@ package web
 import (
 	"context"
 	"errors"
-	layers2 "github.com/mimiro-io/oracle-datalayer/internal/legacy/layers"
+	"github.com/mimiro-io/oracle-datalayer/internal/legacy/layers"
 	"io"
 	"net/http"
 	"net/url"
@@ -16,10 +16,10 @@ import (
 
 type postHandler struct {
 	logger    *zap.SugaredLogger
-	postLayer *layers2.PostLayer
+	postLayer *layers.PostLayer
 }
 
-func NewPostHandler(lc fx.Lifecycle, e *echo.Echo, mw *Middleware, logger *zap.SugaredLogger, layer *layers2.PostLayer) {
+func NewPostHandler(lc fx.Lifecycle, e *echo.Echo, mw *Middleware, logger *zap.SugaredLogger, layer *layers.PostLayer) {
 	log := logger.Named("web")
 
 	handler := &postHandler{
@@ -46,7 +46,7 @@ func (handler *postHandler) postHandler(c echo.Context) error {
 	batchSize := 1000
 	read := 0
 
-	entities := make([]*layers2.Entity, 0) //why 0?
+	entities := make([]*layers.Entity, 0) //why 0?
 
 	isFirst := true
 
@@ -64,7 +64,7 @@ func (handler *postHandler) postHandler(c echo.Context) error {
 					handler.logger.Error(err)
 					return err
 				}
-				entities = make([]*layers2.Entity, 0)
+				entities = make([]*layers.Entity, 0)
 			}
 		}
 
@@ -104,8 +104,8 @@ func parseStream(reader io.Reader, emitEntity func(value *jstream.MetaValue) err
 	return nil
 }
 
-func asEntity(value *jstream.MetaValue) *layers2.Entity {
-	entity := layers2.NewEntity()
+func asEntity(value *jstream.MetaValue) *layers.Entity {
+	entity := layers.NewEntity()
 	raw := value.Value.(map[string]interface{})
 
 	entity.ID = raw["id"].(string)

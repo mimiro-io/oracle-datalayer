@@ -1,0 +1,98 @@
+{
+  "layer_config": {
+    "port": "11694",
+    "service_name": "test_service",
+    "log_level": "debug",
+    "log_format": "text",
+    "config_refresh_interval": "24h"
+  },
+  "system_config": {
+    "oracle_hostname": "localhost",
+    "oracle_port": "1521",
+    "oracle_db": "FREEPDB1",
+    "oracle_user": "testuser",
+    "oracle_password": "testpassword"
+  },
+  "dataset_definitions": [
+    {
+      "name": "sample",
+      "source_config": {
+        "table_name": "sample",
+        "flush_threshold": 10
+      },
+      "incoming_mapping_config": {
+        "base_uri": "http://data.sample.org/",
+        "property_mappings": [
+          {
+            "property": "id",
+            "is_identity": true
+          },
+          {
+            "entity_property": "http://test/prop1",
+            "property": "name"
+          }
+        ]
+      },
+      "outgoing_mapping_config": {
+        "base_uri": "http://data.sample.org/",
+        "property_mappings": [
+          {
+            "property": "id",
+            "is_identity": true,
+            "uri_value_pattern": "http://data.sample.org/things/{value}"
+          },
+          {
+            "entity_property": "http://test/prop1",
+            "property": "name",
+            "uri_value_pattern": "http://data.sample.org/things/{value}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "sample2",
+      "source_config": {
+        "append_mode": true,
+        "table_name": "sample2",
+        "flush_threshold": 10
+      },
+      "incoming_mapping_config": {
+        "base_uri": "http://data.sample.org/",
+        "property_mappings": [
+          {
+            "property": "id",
+            "is_identity": true,
+            "strip_ref_prefix": true,
+            "uri_value_pattern": "http://data.sample.org/things/{value}"
+          },
+          {
+            "entity_property": "http://test/prop1",
+            "property": "name"
+          },
+          {
+            "property": "recorded",
+            "is_recorded": true
+          },
+          {
+            "property": "deleted",
+            "is_deleted": true
+          }
+        ]
+      },
+      "outgoing_mapping_config": {
+        "base_uri": "http://data.sample.org/",
+        "property_mappings": [
+          {
+            "property": "id",
+            "is_identity": true,
+            "uri_value_pattern": "http://data.sample.org/things/{value}"
+          },
+          {
+            "entity_property": "name",
+            "property": "name"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -6,7 +6,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	conf2 "github.com/mimiro-io/oracle-datalayer/internal/legacy/conf"
+	"github.com/mimiro-io/oracle-datalayer/internal/legacy/conf"
 	go_ora "github.com/sijms/go-ora/v2"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -15,18 +15,18 @@ import (
 )
 
 type PostLayer struct {
-	cmgr     *conf2.ConfigurationManager //
+	cmgr     *conf.ConfigurationManager //
 	logger   *zap.SugaredLogger
 	PostRepo *PostRepository //exported because it needs to deferred from main??
 }
 type PostRepository struct {
 	DB           *sql.DB
 	ctx          context.Context
-	postTableDef *conf2.PostMapping
+	postTableDef *conf.PostMapping
 	digest       [16]byte
 }
 
-func NewPostLayer(lc fx.Lifecycle, cmgr *conf2.ConfigurationManager, logger *zap.SugaredLogger) *PostLayer {
+func NewPostLayer(lc fx.Lifecycle, cmgr *conf.ConfigurationManager, logger *zap.SugaredLogger) *PostLayer {
 	postLayer := &PostLayer{logger: logger.Named("layer")}
 	postLayer.cmgr = cmgr
 	postLayer.PostRepo = &PostRepository{
@@ -43,7 +43,7 @@ func NewPostLayer(lc fx.Lifecycle, cmgr *conf2.ConfigurationManager, logger *zap
 	return postLayer
 }
 
-func (postLayer *PostLayer) connect(table *conf2.PostMapping) (*sql.DB, error) {
+func (postLayer *PostLayer) connect(table *conf.PostMapping) (*sql.DB, error) {
 	//test with pure sql
 	u := postLayer.cmgr.Datalayer.GetPostUrl(table)
 
@@ -177,12 +177,12 @@ func (postLayer *PostLayer) PostEntities(datasetName string, entities []*Entity)
 	return nil
 }*/
 
-func (postLayer *PostLayer) getConnString(table *conf2.PostMapping) string {
+func (postLayer *PostLayer) getConnString(table *conf.PostMapping) string {
 	connString := postLayer.cmgr.Datalayer.GetPostUrl(table)
 	return connString
 }
 
-func (postLayer *PostLayer) GetTableDefinition(datasetName string) *conf2.PostMapping {
+func (postLayer *PostLayer) GetTableDefinition(datasetName string) *conf.PostMapping {
 	for _, table := range postLayer.cmgr.Datalayer.PostMappings {
 		if table.DatasetName == datasetName {
 			return table

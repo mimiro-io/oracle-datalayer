@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/DataDog/datadog-go/statsd"
-	conf2 "github.com/mimiro-io/oracle-datalayer/internal/legacy/conf"
+	"github.com/mimiro-io/oracle-datalayer/internal/legacy/conf"
 	"github.com/mimiro-io/oracle-datalayer/internal/legacy/db"
 	_ "github.com/sijms/go-ora/v2"
 	"go.uber.org/fx"
@@ -19,17 +19,17 @@ import (
 )
 
 type Layer struct {
-	cmgr   *conf2.ConfigurationManager
+	cmgr   *conf.ConfigurationManager
 	logger *zap.SugaredLogger
 	Repo   *Repository //exported because it needs to deferred from main
 	statsd statsd.ClientInterface
-	env    *conf2.Env
+	env    *conf.Env
 }
 
 type Repository struct {
 	DB       *sql.DB
 	ctx      context.Context
-	tableDef *conf2.TableMapping
+	tableDef *conf.TableMapping
 	digest   [16]byte
 }
 
@@ -41,7 +41,7 @@ type DatasetRequest struct {
 
 const jsonNull = "null"
 
-func NewLayer(lc fx.Lifecycle, cmgr *conf2.ConfigurationManager, env *conf2.Env) *Layer {
+func NewLayer(lc fx.Lifecycle, cmgr *conf.ConfigurationManager, env *conf.Env) *Layer {
 	layer := &Layer{}
 	layer.cmgr = cmgr
 	layer.logger = env.Logger.Named("layer")
@@ -77,7 +77,7 @@ func (l *Layer) GetDatasetNames() []string {
 	return names
 }
 
-func (l *Layer) GetTableDefinition(datasetName string) *conf2.TableMapping {
+func (l *Layer) GetTableDefinition(datasetName string) *conf.TableMapping {
 	for _, table := range l.cmgr.Datalayer.TableMappings {
 		if table.TableName == datasetName {
 			return table
@@ -212,7 +212,7 @@ func (l *Layer) er(err error) {
 	l.logger.Warnf("Got error %s", err)
 }
 
-func (l *Layer) ensureConnection(table *conf2.TableMapping) error {
+func (l *Layer) ensureConnection(table *conf.TableMapping) error {
 	l.logger.Debug("Ensuring connection")
 	err := l.Repo.DB.Ping()
 	if err != nil || l.cmgr.State.Digest != l.Repo.digest {
@@ -239,7 +239,7 @@ func (l *Layer) ensureConnection(table *conf2.TableMapping) error {
 	return nil
 }
 
-func (l *Layer) connect(table *conf2.TableMapping) (*sql.DB, error) {
+func (l *Layer) connect(table *conf.TableMapping) (*sql.DB, error) {
 
 	u := l.cmgr.Datalayer.GetUrl(table)
 
@@ -257,8 +257,8 @@ func (l *Layer) connect(table *conf2.TableMapping) (*sql.DB, error) {
 }
 
 // mapColumns remaps the ColumnMapping into Column
-func mapColumns(columns []*conf2.ColumnMapping) map[string]*conf2.ColumnMapping {
-	cms := make(map[string]*conf2.ColumnMapping)
+func mapColumns(columns []*conf.ColumnMapping) map[string]*conf.ColumnMapping {
+	cms := make(map[string]*conf.ColumnMapping)
 
 	for _, cm := range columns {
 		cms[cm.FieldName] = cm
@@ -266,7 +266,7 @@ func mapColumns(columns []*conf2.ColumnMapping) map[string]*conf2.ColumnMapping 
 	return cms
 
 }
-func (l *Layer) toEntity(rowType []interface{}, cols []string, colTypes []*sql.ColumnType, tableDef *conf2.TableMapping) *Entity {
+func (l *Layer) toEntity(rowType []interface{}, cols []string, colTypes []*sql.ColumnType, tableDef *conf.TableMapping) *Entity {
 	entity := NewEntity()
 
 	for i, raw := range rowType {
@@ -402,7 +402,7 @@ func (l *Layer) toEntity(rowType []interface{}, cols []string, colTypes []*sql.C
 	s := fmt.Sprintf("%s", dt.Time.Format(time.RFC3339))
 	return base64.StdEncoding.EncodeToString([]byte(s)), nil
 }*/
-func (l *Layer) getSince(db *sql.DB, tableDef *conf2.TableMapping) (string, error) {
+func (l *Layer) getSince(db *sql.DB, tableDef *conf.TableMapping) (string, error) {
 
 	s := ""
 	if tableDef.SinceColumn != "" {

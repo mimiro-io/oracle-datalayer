@@ -15,7 +15,7 @@ func TestLoadFile(t *testing.T) {
 		logger: zap.NewNop().Sugar(),
 	}
 
-	_, err := cmgr.loadFile("file://../../resources/test/test-config.json")
+	_, err := cmgr.loadFile("file://../resources/test/test-config.json")
 	if err != nil {
 		t.FailNow()
 	}
@@ -43,7 +43,7 @@ func TestParse(t *testing.T) {
 		logger: zap.NewNop().Sugar(),
 	}
 
-	res, err := cmgr.loadFile("file://../../resources/test/test-config.json")
+	res, err := cmgr.loadFile("file://../resources/test/test-config.json")
 	if err != nil {
 		t.FailNow()
 	}
@@ -71,6 +71,6 @@ func configMock(w http.ResponseWriter, r *http.Request) {
 	cmgr := ConfigurationManager{
 		logger: zap.NewNop().Sugar(),
 	}
-	res, _ := cmgr.loadFile("file://../../resources/test/test-config.json")
+	res, _ := cmgr.loadFile("file://../resources/test/test-config.json")
 	_, _ = w.Write(res)
 }
