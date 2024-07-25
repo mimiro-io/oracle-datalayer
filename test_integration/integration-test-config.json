@@ -37,14 +37,13 @@
         "base_uri": "http://data.sample.org/",
         "property_mappings": [
           {
-            "property": "id",
+            "property": "ID",
             "is_identity": true,
-            "uri_value_pattern": "http://data.sample.org/things/{value}"
+            "uri_value_pattern": "{value}"
           },
           {
             "entity_property": "http://test/prop1",
-            "property": "name",
-            "uri_value_pattern": "http://data.sample.org/things/{value}"
+            "property": "NAME"
           }
         ]
       }
@@ -76,20 +75,37 @@
           {
             "property": "deleted",
             "is_deleted": true
+          },
+          {
+            "entity_property": "http://test/prop2",
+            "property": "age"
+          },
+          {
+            "entity_property": "http://test/prop3",
+            "property": "weight"
           }
         ]
       },
       "outgoing_mapping_config": {
         "base_uri": "http://data.sample.org/",
+        "map_all": true,
         "property_mappings": [
           {
-            "property": "id",
+            "property": "ID",
             "is_identity": true,
             "uri_value_pattern": "http://data.sample.org/things/{value}"
           },
           {
             "entity_property": "name",
-            "property": "name"
+            "property": "NAME"
+          },
+          {
+            "property": "RECORDED",
+            "is_recorded": true
+          },
+          {
+            "property": "DELETED",
+            "is_deleted": true
           }
         ]
       }

@@ -2,8 +2,9 @@ package layer
 
 import (
 	"fmt"
-	common "github.com/mimiro-io/common-datalayer"
 	"strconv"
+
+	common "github.com/mimiro-io/common-datalayer"
 )
 
 const (
@@ -11,6 +12,7 @@ const (
 	TableName      = "table_name"
 	FlushThreshold = "flush_threshold"
 	AppendMode     = "append_mode"
+	SinceColumn    = "since_column"
 
 	// native system config
 	OracleHostname = "oracle_hostname"

@@ -2,6 +2,7 @@ package layer
 
 import (
 	"context"
+
 	common "github.com/mimiro-io/common-datalayer"
 )
 
@@ -28,7 +29,7 @@ func (d *Dataset) Name() string {
 }
 
 func (dl *OracleDatalayer) Stop(ctx context.Context) error {
-	//nothing to do for now
+	// nothing to do for now
 	return nil
 }
 

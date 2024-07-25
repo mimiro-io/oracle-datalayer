@@ -2,15 +2,16 @@ package test_integration
 
 import (
 	"context"
+	"log"
+	"os"
+	"strconv"
+	"testing"
+
 	common "github.com/mimiro-io/common-datalayer"
 	layer "github.com/mimiro-io/oracle-datalayer/internal"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 	go_ora "github.com/sijms/go-ora/v2"
-	"log"
-	"os"
-	"strconv"
-	"testing"
 )
 
 func TestMain(m *testing.M) {
@@ -46,7 +47,6 @@ func TestMain(m *testing.M) {
 				Name: "no",
 			}
 		})
-
 		//oracleContainer, err := pool.RunWithOptions(&dockertest.RunOptions{
 		//	Repository: "oscarfonts/h2",
 		//	Tag:        "latest",
@@ -56,14 +56,12 @@ func TestMain(m *testing.M) {
 		//		Name: "no",
 		//	}
 		//})
-
 		if err != nil {
 			log.Fatalf("Could not start resource: %s", err)
 		}
 
 		// if we start the container ourselves, we need to close it ourselves
 		defer func() {
-
 			if recover() != nil {
 				log.Println("Recovered from panic")
 			}
@@ -103,7 +101,6 @@ func TestMain(m *testing.M) {
 		perr := c.Ping(context.Background())
 		if perr != nil {
 			return perr
-
 		}
 		return nil
 	}); err != nil {

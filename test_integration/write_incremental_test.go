@@ -2,12 +2,13 @@ package test_integration
 
 import (
 	"database/sql"
-	egdm "github.com/mimiro-io/entity-graph-data-model"
-	go_ora "github.com/sijms/go-ora/v2"
 	"io"
 	"net/http"
 	"os"
 	"testing"
+
+	egdm "github.com/mimiro-io/entity-graph-data-model"
+	go_ora "github.com/sijms/go-ora/v2"
 )
 
 /**
@@ -21,7 +22,6 @@ func TestPostEntitiesLatestOnly(t *testing.T) {
 	defer testServer().Stop()
 
 	t.Run("add entities to table", func(t *testing.T) {
-
 		conn := freshTables(t)
 		defer conn.Close()
 
@@ -46,7 +46,6 @@ func TestPostEntitiesLatestOnly(t *testing.T) {
 		rows, err := conn.Query("SELECT id,name FROM sample")
 		if err != nil {
 			t.Fatalf("Failed to query table: %v", err)
-
 		}
 		defer rows.Close()
 		var id, name string
@@ -85,6 +84,12 @@ func TestPostEntitiesLatestOnly(t *testing.T) {
 		go func() { ec.WriteEntityGraphJSON(entityWriter); entityWriter.Close() }()
 
 		resp, err = http.Post(baseURL+"/datasets/sample/entities", "application/json", entityReader)
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Expected status code 200, got %d", resp.StatusCode)
+		}
 
 		rows, err := conn.Query("SELECT id,name FROM sample WHERE id = 'http://test/1'")
 		if err != nil {
@@ -111,7 +116,6 @@ func TestPostEntitiesLatestOnly(t *testing.T) {
 		rows2, err := conn.Query("SELECT id,name FROM sample")
 		if err != nil {
 			t.Fatalf("Failed to query table: %v", err)
-
 		}
 		defer rows2.Close()
 		cnt := 0
@@ -150,13 +154,21 @@ func TestPostEntitiesLatestOnly(t *testing.T) {
 		}
 
 		ec = egdm.NewEntityCollection(egdm.NewNamespaceContext())
-		ec.AddEntityFromMap(map[string]any{"id": "http://test/1",
+		ec.AddEntityFromMap(map[string]any{
+			"id":      "http://test/1",
 			"props":   map[string]any{"http://test/prop1": "value1-changed"},
-			"deleted": true})
+			"deleted": true,
+		})
 		entityReader, entityWriter = io.Pipe()
 		go func() { ec.WriteEntityGraphJSON(entityWriter); entityWriter.Close() }()
 
 		resp, err = http.Post(baseURL+"/datasets/sample/entities", "application/json", entityReader)
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Expected status code 200, got %d", resp.StatusCode)
+		}
 
 		rows, err := conn.Query("SELECT id,name FROM sample WHERE id = 'http://test/1'")
 		if err != nil {
@@ -171,7 +183,6 @@ func TestPostEntitiesLatestOnly(t *testing.T) {
 		rows, err = conn.Query("SELECT id,name FROM sample")
 		if err != nil {
 			t.Fatalf("Failed to query table: %v", err)
-
 		}
 		defer rows.Close()
 		var id, name string
@@ -204,7 +215,7 @@ func TestPostEntitiesAppendMode(t *testing.T) {
 		defer conn.Close()
 
 		ec := egdm.NewEntityCollection(egdm.NewNamespaceContext())
-		ec.AddEntityFromMap(map[string]any{"id": "http://test/1", "recorded": uint64(1245454545), "props": map[string]any{"http://test/prop1": "value1"}})
+		ec.AddEntityFromMap(map[string]any{"id": "http://test/1", "recorded": uint64(1245454545), "props": map[string]any{"http://test/prop1": "value1", "http://test/prop2": 44, "http://test/prop3": 57.5}})
 		ec.AddEntityFromMap(map[string]any{"id": "http://test/2", "props": map[string]any{"http://test/prop1": "value2"}})
 		ec.AddEntityFromMap(map[string]any{"id": "http://test/3", "props": map[string]any{"http://test/prop1": "value3"}})
 		entityReader, entityWriter := io.Pipe()
@@ -224,14 +235,13 @@ func TestPostEntitiesAppendMode(t *testing.T) {
 		rows, err := conn.Query("SELECT * FROM sample2")
 		if err != nil {
 			t.Fatalf("Failed to query table: %v", err)
-
 		}
 		defer rows.Close()
-		var id, name, recorded, deleted any
+		var id, name, recorded, deleted, age, weight any
 		cnt := 0
 		id1Seen := false
 		for rows.Next() {
-			err := rows.Scan(&id, &name, &recorded, &deleted)
+			err := rows.Scan(&id, &name, &recorded, &deleted, &age, &weight)
 			if err != nil {
 				t.Fatalf("Failed to scan row: %v", err)
 			}
@@ -244,6 +254,12 @@ func TestPostEntitiesAppendMode(t *testing.T) {
 				}
 				if recorded != "1245454545" {
 					t.Fatalf("Expected recorded timestamp, got nil")
+				}
+				if age != "44" {
+					t.Fatalf("Expected age 44, got %v", age)
+				}
+				if weight != 57.5 {
+					t.Fatalf("Expected weight 57.5, got %v", weight)
 				}
 				id1Seen = true
 			}
@@ -311,6 +327,9 @@ func TestPostEntitiesAppendMode(t *testing.T) {
 		valueChangedSeen = name == "value1-changed"
 		valueSeen = name == "value1"
 		hasNext = rows.Next()
+		if !hasNext {
+			t.Fatalf("Expected more rows")
+		}
 		err = rows.Scan(&id, &name)
 		if err != nil {
 			t.Fatalf("Failed to scan row: %v", err)
@@ -332,7 +351,6 @@ func TestPostEntitiesAppendMode(t *testing.T) {
 		rows2, err := conn.Query("SELECT id,name FROM sample2")
 		if err != nil {
 			t.Fatalf("Failed to query table: %v", err)
-
 		}
 		defer rows2.Close()
 		cnt := 0
@@ -346,7 +364,6 @@ func TestPostEntitiesAppendMode(t *testing.T) {
 		if cnt != 4 {
 			t.Fatalf("Expected 4 rows, got %d", cnt)
 		}
-
 	})
 
 	t.Run("delete entities from table", func(t *testing.T) {
@@ -372,10 +389,12 @@ func TestPostEntitiesAppendMode(t *testing.T) {
 		}
 
 		ec = egdm.NewEntityCollection(egdm.NewNamespaceContext())
-		ec.AddEntityFromMap(map[string]any{"id": "http://test/1",
+		ec.AddEntityFromMap(map[string]any{
+			"id":       "http://test/1",
 			"recorded": uint64(1345454545),
 			"deleted":  true,
-			"props":    map[string]any{"http://test/prop1": "value1"}})
+			"props":    map[string]any{"http://test/prop1": "value1"},
+		})
 		entityReader, entityWriter = io.Pipe()
 		go func() {
 			ec.WriteEntityGraphJSON(entityWriter)
@@ -406,6 +425,9 @@ func TestPostEntitiesAppendMode(t *testing.T) {
 		deletedSeen = deleted == "1"
 		undeletedSeen = deleted == "0"
 		hasNext = rows.Next()
+		if !hasNext {
+			t.Fatalf("Expected more rows")
+		}
 		err = rows.Scan(&id, &deleted)
 		if err != nil {
 			t.Fatalf("Failed to scan row: %v", err)
@@ -427,7 +449,6 @@ func TestPostEntitiesAppendMode(t *testing.T) {
 		rows2, err := conn.Query("SELECT id FROM sample2")
 		if err != nil {
 			t.Fatalf("Failed to query table: %v", err)
-
 		}
 		defer rows2.Close()
 		cnt := 0
@@ -453,7 +474,14 @@ func freshTables(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
 	}
-	_, err = c.Exec("CREATE TABLE sample2 (id VARCHAR2(100), name VARCHAR2(100), recorded NUMBER(16), deleted NUMBER(1))")
+	_, err = c.Exec("CREATE TABLE sample2 (" +
+		"id VARCHAR2(100), " +
+		"name VARCHAR2(100), " +
+		"recorded NUMBER(16), " +
+		"deleted BOOL, " +
+		"age NUMBER(5,0), " +
+		"weight BINARY_FLOAT" +
+		")")
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
 	}

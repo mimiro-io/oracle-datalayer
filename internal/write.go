@@ -4,13 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	common "github.com/mimiro-io/common-datalayer"
-	"github.com/mimiro-io/entity-graph-data-model"
 	"strings"
+
+	common "github.com/mimiro-io/common-datalayer"
+	egdm "github.com/mimiro-io/entity-graph-data-model"
 )
 
 func (d *Dataset) FullSync(ctx context.Context, batchInfo common.BatchInfo) (common.DatasetWriter, common.LayerError) {
-	//TODO not supported (yet?)
+	// TODO not supported (yet?)
 	return nil, ErrNotSupported
 }
 
@@ -55,44 +56,19 @@ func (d *Dataset) newOracleWriter(ctx context.Context) (*OracleWriter, common.La
 	}, nil
 }
 
-type RowItem struct {
-	Columns []string
-	Values  []any
-	Map     map[string]any
-	deleted bool
-}
-
-func (r *RowItem) GetValue(name string) any {
-	return r.Map[name]
-}
-
-func (r *RowItem) SetValue(name string, value any) {
-	r.Columns = append(r.Columns, name)
-	r.Values = append(r.Values, value)
-	r.Map[name] = value
-}
-
-func (r *RowItem) NativeItem() any {
-	return r.Map
-}
-
-func (r *RowItem) GetPropertyNames() []string {
-	return r.Columns
-}
-
 type OracleWriter struct {
 	logger         common.Logger
+	ctx            context.Context
 	mapper         *common.Mapper
 	db             *sql.DB
-	batch          strings.Builder
-	batchSize      int
-	ctx            context.Context
+	tx             *sql.Tx
 	table          string
+	idColumn       string
+	batch          strings.Builder
+	lastCols       []string
+	batchSize      int
 	flushThreshold int
 	appendMode     bool
-	lastCols       []string
-	idColumn       string
-	tx             *sql.Tx
 }
 
 func (o *OracleWriter) Write(entity *egdm.Entity) common.LayerError {
@@ -266,7 +242,7 @@ func (o *OracleWriter) upsert(item *RowItem) error {
 		o.batch.WriteRune('"')
 		o.batch.WriteString(strings.ToUpper(k))
 		o.batch.WriteRune('"')
-		//if i != len(item.Columns)-1 {
+		// if i != len(item.Columns)-1 {
 		o.batch.WriteString(", ")
 		//}
 	}
