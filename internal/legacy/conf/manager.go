@@ -1,7 +1,6 @@
 package conf
 
 import (
-	"context"
 	"crypto/md5"
 	"encoding/json"
 	"github.com/mimiro-io/oracle-datalayer/internal/legacy/security"
@@ -54,12 +53,7 @@ func NewConfigurationManager(lc fx.Lifecycle, env *Env, providers *security.Toke
 		},
 	}
 
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			config.Init()
-			return nil
-		},
-	})
+	config.Init()
 	return config
 }
 

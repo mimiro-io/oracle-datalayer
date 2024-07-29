@@ -2,6 +2,7 @@ package layer
 
 import (
 	"context"
+	"sort"
 
 	common "github.com/mimiro-io/common-datalayer"
 )
@@ -46,6 +47,9 @@ func (dl *OracleDatalayer) DatasetDescriptions() []*common.DatasetDescription {
 	for key := range dl.datasets {
 		datasetDescriptions = append(datasetDescriptions, &common.DatasetDescription{Name: key})
 	}
+	sort.Slice(datasetDescriptions, func(i, j int) bool {
+		return datasetDescriptions[i].Name < datasetDescriptions[j].Name
+	})
 	return datasetDescriptions
 }
 

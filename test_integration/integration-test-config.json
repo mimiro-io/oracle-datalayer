@@ -2,7 +2,7 @@
   "layer_config": {
     "port": "11694",
     "service_name": "test_service",
-    "log_level": "debug",
+    "log_level": "warn",
     "log_format": "text",
     "config_refresh_interval": "24h"
   },
@@ -53,6 +53,7 @@
       "source_config": {
         "append_mode": true,
         "table_name": "sample2",
+        "since_column": "recorded",
         "flush_threshold": 10
       },
       "incoming_mapping_config": {
@@ -106,6 +107,24 @@
           {
             "property": "DELETED",
             "is_deleted": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "sample3",
+      "source_config": {
+        "table_name": "sample3",
+        "since_column": "rowid"
+      },
+      "outgoing_mapping_config": {
+        "base_uri": "http://data.sample.org/",
+        "map_all": true,
+        "property_mappings": [
+          {
+            "property": "ID",
+            "is_identity": true,
+            "uri_value_pattern": "http://data.sample3.org/{value}"
           }
         ]
       }

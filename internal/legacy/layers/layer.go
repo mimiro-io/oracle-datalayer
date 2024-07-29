@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/mimiro-io/oracle-datalayer/internal/legacy/conf"
@@ -48,7 +49,11 @@ func NewLayer(lc fx.Lifecycle, cmgr *conf.ConfigurationManager, env *conf.Env) *
 	layer.Repo = &Repository{
 		ctx: context.Background(),
 	}
-	_ = layer.ensureConnection(nil) // ok with error here
+	dbErr := layer.ensureConnection(nil)
+	if dbErr != nil {
+		//layer.logger.Error("Error connecting to database: ", dbErr.Error())
+		return nil
+	}
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
@@ -214,10 +219,15 @@ func (l *Layer) er(err error) {
 
 func (l *Layer) ensureConnection(table *conf.TableMapping) error {
 	l.logger.Debug("Ensuring connection")
-	err := l.Repo.DB.Ping()
+	var err error
+	if l.Repo.DB == nil {
+		err = errors.New("unintitialized")
+	} else {
+		err = l.Repo.DB.Ping()
+	}
 	if err != nil || l.cmgr.State.Digest != l.Repo.digest {
 		if err != nil {
-			l.logger.Warn("Error pinging connection: ", err.Error(), ". Resetting connection")
+			l.logger.Info("Error pinging connection: ", err.Error(), ". Resetting connection")
 		} else {
 			l.logger.Debug("Configuration has changed need to reset connection")
 		}
@@ -229,7 +239,6 @@ func (l *Layer) ensureConnection(table *conf.TableMapping) error {
 		}
 		newDb, err2 := l.connect(table)
 		if err2 != nil {
-			l.logger.Error("Error connecting to database: ", err2.Error())
 			l.Repo.DB = nil
 			return err2
 		}
@@ -250,7 +259,7 @@ func (l *Layer) connect(table *conf.TableMapping) (*sql.DB, error) {
 	}
 	err = db.Ping()
 	if err != nil {
-		l.logger.Warn(err.Error())
+		l.logger.Errorf("Could not ping db. DBURL: %s, err: %v", u, err)
 		return nil, err
 	}
 	return db, nil

@@ -3,14 +3,13 @@ package test_integration
 import (
 	"database/sql"
 	common "github.com/mimiro-io/common-datalayer"
+	egdm "github.com/mimiro-io/entity-graph-data-model"
 	layer "github.com/mimiro-io/oracle-datalayer/internal"
 	go_ora "github.com/sijms/go-ora/v2"
 	"net/http"
 	"os"
-	"strings"
 	"testing"
-
-	egdm "github.com/mimiro-io/entity-graph-data-model"
+	"time"
 )
 
 func TestReadAllTypes(t *testing.T) {
@@ -33,8 +32,23 @@ func TestReadAllTypes(t *testing.T) {
 				OutgoingMappingConfig: &common.OutgoingMappingConfig{
 					BaseURI: "http://any.type/",
 					PropertyMappings: []*common.ItemToEntityPropertyMapping{{
+						Property:        "id",
+						IsIdentity:      true,
+						URIValuePattern: "{value}",
+					}, {
 						EntityProperty: "ent_string",
-						Property:       "col_string",
+						Property:       "col_varchar2",
+					}, {
+						EntityProperty: "rowid_string",
+						Property:       "rowid",
+					}, {
+						EntityProperty: "col_number1",
+						Property:       "col_number1",
+						Datatype:       "Boolean",
+					}, {
+						EntityProperty: "col_bool",
+						Property:       "col_bool",
+						Datatype:       "Boolean",
 					}},
 				},
 				DatasetName: "all_types_manual_mapped",
@@ -44,7 +58,6 @@ func TestReadAllTypes(t *testing.T) {
 	defer server.Stop()
 
 	t.Run("read all oracle data types auto mapped", func(t *testing.T) {
-		primeTables(t)
 		resp, err := http.Get(baseURL + "/datasets/all_types_auto_mapped/changes")
 		if err != nil {
 			t.Fatalf("Failed to send request: %v", err)
@@ -70,7 +83,8 @@ func TestReadAllTypes(t *testing.T) {
 		eq(t, ec.GetEntities()[0], "COL_NCHAR", "four ") // fixed length 5 char. TODO: who should trim?
 		eq(t, ec.GetEntities()[0], "COL_NUMBER32", 32.0)
 		eq(t, ec.GetEntities()[0], "COL_NUMBER5P2", 5.2)
-		eq(t, ec.GetEntities()[0], "COL_NUMBER1", true)
+		eq(t, ec.GetEntities()[0], "COL_NUMBER1", 1.0) // without data type hint in mapping, this would be a float
+		eq(t, ec.GetEntities()[0], "COL_BOOL", 1.0)    // without data type hint in mapping, this would be a float
 		eq(t, ec.GetEntities()[0], "COL_FLOAT64", 64.0)
 		eq(t, ec.GetEntities()[0], "COL_FLOAT32", 32.0)
 		eq(t, ec.GetEntities()[0], "COL_BINARY_FLOAT", 1.1)
@@ -78,19 +92,56 @@ func TestReadAllTypes(t *testing.T) {
 		eq(t, ec.GetEntities()[0], "COL_DATE", "2021-01-01T00:00:00Z")
 		eq(t, ec.GetEntities()[0], "COL_TIMESTAMP", "2021-01-01T12:00:00Z")
 		eq(t, ec.GetEntities()[0], "COL_TIMESTAMP_TZ", "2021-01-01T12:00:00+01:00")
-		eq(t, ec.GetEntities()[0], "COL_TIMESTAMP_LTZ", "2021-01-01T10:00:00Z")
+
+		eq(t, ec.GetEntities()[0], "COL_TIMESTAMP_LTZ", time.Date(2021, 1, 1, 12, 0, 0, 0, time.FixedZone("CET", 3600)).In(time.UTC).Format(time.RFC3339))
 		eq(t, ec.GetEntities()[0], "COL_INTERVAL_DS", "+01 12:00:00.000000")
 		eq(t, ec.GetEntities()[0], "COL_INTERVAL_YM", "+01-02")
 		eq(t, ec.GetEntities()[0], "COL_RAW", "AAABBBCCCDDD")
 
-		if len(ec.GetEntities()[1].Properties) != 3 {
-			t.Fatalf("Expected 3 properties (2xbool+id), got %d", len(ec.GetEntities()[1].Properties))
+		if len(ec.GetEntities()[1].Properties) != 1 {
+			t.Fatalf("Expected 1 property (id) only from row with all nulls, got %d", len(ec.GetEntities()[1].Properties))
+		}
+	})
+	t.Run("read all oracle data types manual mapped", func(t *testing.T) {
+		resp, err := http.Get(baseURL + "/datasets/all_types_manual_mapped/changes")
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Expected status code 200, got %d", resp.StatusCode)
+		}
+		entityParser := egdm.NewEntityParser(egdm.NewNamespaceContext()).WithExpandURIs()
+		ec, err := entityParser.LoadEntityCollection(resp.Body)
+		if err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+		if len(ec.GetEntities()) != 2 {
+			t.Fatalf("Expected 2 entities, got %d", len(ec.GetEntities()))
+		}
+		if ec.GetEntities()[0].ID != "http://test/1" {
+			t.Fatalf("Expected first entity to have ID 'http://test/1', got %s", ec.GetEntities()[0].ID)
+		}
+		if ec.GetEntities()[1].ID != "http://test/2" {
+			t.Fatalf("Expected 2nd entity to have ID 'http://test/2', got %s", ec.GetEntities()[1].ID)
+		}
+		if len(ec.GetEntities()[0].Properties) != 4 {
+			t.Fatalf("Expected 4 properties, got %d", len(ec.GetEntities()[0].Properties))
+		}
+		eq(t, ec.GetEntities()[0], "ent_string", "one")
+		eq(t, ec.GetEntities()[0], "col_number1", true)
+		eq(t, ec.GetEntities()[0], "col_bool", true)
+		rid := ec.GetEntities()[0].Properties["http://any.type/rowid_string"]
+		if _, ok := rid.(string); !ok {
+			t.Fatalf("Expected rowid to be a string, got %+v", rid)
+		}
+		if len(rid.(string)) < 6 {
+			t.Fatalf("Expected rowid string to be at least 6 chars long, got %v", rid)
 		}
 	})
 }
 
 func eq(t *testing.T, e *egdm.Entity, key string, exp any) {
-	k := "http://any.type/" + strings.ToUpper(key)
+	k := "http://any.type/" + key
 	val := e.Properties[k]
 	if val != exp {
 		t.Fatalf("Expected %s to be %s, got %s", k, exp, val)
@@ -146,7 +197,7 @@ func createTypeTestTable(t *testing.T) {
 		"TO_DATE('2021-01-01', 'YYYY-MM-DD'), " +
 		"TO_TIMESTAMP('2021-01-01 12:00:00', 'YYYY-MM-DD HH24:MI:SS'), " +
 		"TO_TIMESTAMP_TZ('2021-01-01 12:00:00 +01:00', 'YYYY-MM-DD HH24:MI:SS TZH:TZM'), " +
-		"TO_TIMESTAMP('2021-01-01 12:00:00', 'YYYY-MM-DD HH24:MI:SS'), " +
+		"TO_TIMESTAMP_TZ('2021-01-01 12:00:00 +01:00', 'YYYY-MM-DD HH24:MI:SS TZH:TZM'), " +
 		"INTERVAL '1 12:00:00' DAY TO SECOND, " +
 		"INTERVAL '1-2' YEAR TO MONTH, " +
 		"RAWTOHEX('AAABBBCCCDDD')" +
@@ -156,6 +207,8 @@ func createTypeTestTable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to insert data: %v", err)
 	}
+
+	// adding a 2nd row with all null values, to make sure the layer can handle that
 	_, err = conn.Exec("INSERT INTO all_types VALUES (" +
 		"'http://test/2', " +
 		"null, " +

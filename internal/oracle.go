@@ -54,6 +54,8 @@ func (r *RowItem) GetValue(name string) any {
 		} else {
 			return nil
 		}
+	case nil:
+		return nil
 	default:
 		return "invalid type"
 	}

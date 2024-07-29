@@ -89,7 +89,7 @@ func (layer *Datalayer) GetUrl(table *TableMapping) string {
 	service := layer.Service
 	user := layer.User
 	password := layer.Password
-	if table.Config != nil {
+	if table != nil && table.Config != nil {
 		if table.Config.Port != nil {
 			port = *table.Config.Port
 		}

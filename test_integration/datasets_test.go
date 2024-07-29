@@ -34,6 +34,7 @@ func TestDatasetsEndpoint(t *testing.T) {
 	expected := []map[string]any{
 		{"name": "sample", "description": "", "metadata": nil},
 		{"name": "sample2", "description": "", "metadata": nil},
+		{"name": "sample3", "description": "", "metadata": nil},
 	}
 	if !reflect.DeepEqual(received, expected) {
 		t.Fatalf("Expected response to contain \n\n%s\n\nbut observed\n\n%s\n\n", expected, received)

@@ -51,6 +51,7 @@ func parseEnv(env string, logger *zap.SugaredLogger) {
 	viper.SetDefault("LOG_LEVEL", "INFO")
 	viper.SetDefault("CONFIG_REFRESH_INTERVAL", "@every 60s")
 	viper.SetDefault("SERVICE_NAME", "oracle-datalayer")
+	viper.SetDefault("AUTHORIZATION_MIDDLEWARE", "noop")
 	viper.AutomaticEnv()
 
 	viper.SetDefault("CONFIG_LOCATION", fmt.Sprintf("file://%s", ".config.json"))
@@ -59,8 +60,9 @@ func parseEnv(env string, logger *zap.SugaredLogger) {
 	viper.SetConfigName(".env")
 	err := viper.ReadInConfig() // Find and read the config file
 	if err != nil {             // Handle errors reading the config file
-		logger.DPanicf("Fatal error config file: %s", err)
-		panic(fmt.Errorf("Fatal error config file: %s \n", err))
+		//logger.DPanicf("Fatal error config file: %s", err)
+		//panic(fmt.Errorf("Fatal error config file: %s \n", err))
+		logger.Infof("Could not find .env")
 	}
 
 	logger.Infof("Reading config file %s", viper.GetViper().ConfigFileUsed())

@@ -470,6 +470,7 @@ func freshTables(t *testing.T) *sql.DB {
 	c := sql.OpenDB(go_ora.NewConnector(url))
 	c.Exec("DROP TABLE sample")  // ignore errors, table may not exist
 	c.Exec("DROP TABLE sample2") // ignore errors, table may not exist
+	c.Exec("DROP TABLE sample3") // ignore errors, table may not exist
 	_, err := c.Exec("CREATE TABLE sample (id VARCHAR2(100), name VARCHAR2(100))")
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
@@ -482,6 +483,10 @@ func freshTables(t *testing.T) *sql.DB {
 		"age NUMBER(5,0), " +
 		"weight BINARY_FLOAT" +
 		")")
+	if err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+	_, err = c.Exec("CREATE TABLE sample3 (id VARCHAR2(100), name VARCHAR2(100))")
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
 	}

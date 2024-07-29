@@ -1,15 +1,18 @@
 package test_integration
 
 import (
+	"database/sql"
+	go_ora "github.com/sijms/go-ora/v2"
 	"net/http"
+	"os"
 	"testing"
 
 	egdm "github.com/mimiro-io/entity-graph-data-model"
 )
 
-func TestReadChanges_prefixed(t *testing.T) {
+func TestReadChanges(t *testing.T) {
 	defer testServer().Stop()
-	t.Run("read all changes", func(t *testing.T) {
+	t.Run("read all changes from id-unique data that has URI format", func(t *testing.T) {
 		primeTables(t)
 		resp, err := http.Get(baseURL + "/datasets/sample/changes")
 		if err != nil {
@@ -40,11 +43,8 @@ func TestReadChanges_prefixed(t *testing.T) {
 			t.Fatalf("Expected last entity to have ID 'http://test/10', got %s", ec.GetEntities()[9].ID)
 		}
 	})
-}
 
-func TestReadChanges_simpleValues(t *testing.T) {
-	defer testServer().Stop()
-	t.Run("read all changes", func(t *testing.T) {
+	t.Run("read all changes from id-duplicated table with un-namespaced values", func(t *testing.T) {
 		primeTables(t)
 		resp, err := http.Get(baseURL + "/datasets/sample2/changes")
 		if err != nil {
@@ -66,7 +66,7 @@ func TestReadChanges_simpleValues(t *testing.T) {
 			t.Fatalf("Expected first entity to have ID 'http://data.sample.org/things/1', got %s", ec.GetEntities()[0].ID)
 		}
 		if len(ec.GetEntities()[0].Properties) != 7 {
-			t.Fatalf("Expected first entity to have 1 property, got %d", len(ec.GetEntities()[0].Properties))
+			t.Fatalf("Expected first entity to have 7 property, got %d", len(ec.GetEntities()[0].Properties))
 		}
 		if ec.GetEntities()[0].Properties["http://data.sample.org/name"] != "one" {
 			t.Fatalf("Expected first entity to have property 'name' with value 'one', got %s", ec.GetEntities()[0].Properties["http://data.sample.org/name"])
@@ -99,13 +99,200 @@ func TestReadChanges_simpleValues(t *testing.T) {
 			t.Fatalf("Expected last entity to have recorded timestamp 164565974, got %d", ec.GetEntities()[9].Recorded)
 		}
 	})
-}
 
-// TODOS: - Add test for "read all changes with limit"
-//        - Add test for "read all changes with since"
-//        - Add test for "read all changes with since and limit, paging"
-//        - Add test for "read all changes with latest only"
-//        - Add test for "read all changes with since but no since_column"
+	t.Run("check that latestOnly is not supported", func(t *testing.T) {
+		primeTables(t)
+		resp, err := http.Get(baseURL + "/datasets/sample/changes?latestOnly=true")
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+		if resp.StatusCode != http.StatusInternalServerError {
+			t.Fatalf("Expected status code 500, got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("read all changes with limit", func(t *testing.T) {
+		primeTables(t)
+		resp, err := http.Get(baseURL + "/datasets/sample/changes?limit=3")
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+
+		entityParser := egdm.NewEntityParser(egdm.NewNamespaceContext()).WithExpandURIs()
+		ec, err := entityParser.LoadEntityCollection(resp.Body)
+		if err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+		if len(ec.GetEntities()) != 3 {
+			t.Fatalf("Expected 3 entities, got %d", len(ec.GetEntities()))
+		}
+		if ec.GetEntities()[0].ID != "http://test/1" {
+			t.Fatalf("Expected first entity to have ID 'http://test/1', got %s", ec.GetEntities()[0].ID)
+		}
+		if ec.GetEntities()[2].ID != "http://test/3" {
+			t.Fatalf("Expected last entity to have ID 'http://test/3', got %s", ec.GetEntities()[2].ID)
+		}
+	})
+
+	t.Run("check that dataset without since_column does not have a continuation token in responses", func(t *testing.T) {
+		primeTables(t)
+		resp, err := http.Get(baseURL + "/datasets/sample/changes")
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+
+		entityParser := egdm.NewEntityParser(egdm.NewNamespaceContext()).WithExpandURIs()
+		ec, err := entityParser.LoadEntityCollection(resp.Body)
+		if err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+		if ec.GetContinuationToken() != nil && ec.GetContinuationToken().Token != "" {
+			t.Fatalf("Expected no continuation token, got %s", ec.GetContinuationToken())
+		}
+	})
+
+	t.Run("check that request to dataset without since_column still works if since parameter is provided", func(t *testing.T) {
+		primeTables(t)
+		resp, err := http.Get(baseURL + "/datasets/sample/changes?since=ACD45FB")
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+
+		entityParser := egdm.NewEntityParser(egdm.NewNamespaceContext()).WithExpandURIs()
+		ec, err := entityParser.LoadEntityCollection(resp.Body)
+		if err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+		if ec.GetContinuationToken() != nil && ec.GetContinuationToken().Token != "" {
+			t.Fatalf("Expected no continuation token, got %s", ec.GetContinuationToken())
+		}
+	})
+
+	t.Run("check that dataset with since_column does have a continuation token in responses", func(t *testing.T) {
+		primeTables(t)
+		resp, err := http.Get(baseURL + "/datasets/sample2/changes")
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+
+		entityParser := egdm.NewEntityParser(egdm.NewNamespaceContext()).WithExpandURIs()
+		ec, err := entityParser.LoadEntityCollection(resp.Body)
+		if err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+		if ec.GetContinuationToken() == nil || ec.GetContinuationToken().Token == "" {
+			t.Fatalf("Expected continuation token, got %+v", ec.GetContinuationToken())
+		}
+
+	})
+
+	t.Run("read all changes with since", func(t *testing.T) {
+		primeTables(t)
+		resp, err := http.Get(baseURL + "/datasets/sample2/changes")
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+
+		entityParser := egdm.NewEntityParser(egdm.NewNamespaceContext()).WithExpandURIs()
+		ec, err := entityParser.LoadEntityCollection(resp.Body)
+		if err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+
+		if len(ec.GetEntities()) != 14 {
+			t.Fatalf("Expected 14 entities, got %d", len(ec.GetEntities()))
+		}
+		resp, err = http.Get(baseURL + "/datasets/sample2/changes?since=" + ec.GetContinuationToken().Token)
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+		ec, err = entityParser.LoadEntityCollection(resp.Body)
+		if err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+		if len(ec.GetEntities()) != 0 {
+			t.Fatalf("Expected 0 entities, nothing new since last call, got %d", len(ec.GetEntities()))
+		}
+		if ec.GetContinuationToken() == nil || ec.GetContinuationToken().Token == "" {
+			t.Fatalf("Expected continuation token, got %+v", ec.GetContinuationToken())
+		}
+
+		url := os.Getenv("ORACLE_URL")
+		c := sql.OpenDB(go_ora.NewConnector(url))
+		defer c.Close()
+		_, err = c.Exec("INSERT INTO sample2 (id, name, recorded, deleted, age, weight) VALUES (11, 'eleven', 164565975, false, 11, 11.0)")
+		if err != nil {
+			t.Fatalf("Failed to insert data: %v", err)
+		}
+		resp, err = http.Get(baseURL + "/datasets/sample2/changes?since=" + ec.GetContinuationToken().Token)
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+		ec, err = entityParser.LoadEntityCollection(resp.Body)
+		if err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+		if len(ec.GetEntities()) != 1 {
+			t.Fatalf("Expected 1 new entities after insert, got %d", len(ec.GetEntities()))
+		}
+	})
+
+	t.Run("use oracle rowid as since_column", func(t *testing.T) {
+		primeTables(t)
+		resp, err := http.Get(baseURL + "/datasets/sample3/changes")
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+
+		entityParser := egdm.NewEntityParser(egdm.NewNamespaceContext()).WithExpandURIs()
+		ec, err := entityParser.LoadEntityCollection(resp.Body)
+		if err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+		if len(ec.GetEntities()) != 3 {
+			t.Fatalf("Expected 3 entities, got %d", len(ec.GetEntities()))
+		}
+
+		if ec.GetContinuationToken() == nil || ec.GetContinuationToken().Token == "" {
+			t.Fatalf("Expected continuation token, got %+v", ec.GetContinuationToken())
+		}
+
+		resp, err = http.Get(baseURL + "/datasets/sample3/changes?since=" + ec.GetContinuationToken().Token)
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+		ec, err = entityParser.LoadEntityCollection(resp.Body)
+		if err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+		if len(ec.GetEntities()) != 0 {
+			t.Fatalf("Expected 3 entities, got %d", len(ec.GetEntities()))
+		}
+		if ec.GetContinuationToken() == nil || ec.GetContinuationToken().Token == "" {
+			t.Fatalf("Expected continuation token, got %+v", ec.GetContinuationToken())
+		}
+
+		url := os.Getenv("ORACLE_URL")
+		c := sql.OpenDB(go_ora.NewConnector(url))
+		defer c.Close()
+		_, err = c.Exec("INSERT INTO sample3 (id, name) VALUES (4, 'four')")
+		if err != nil {
+			t.Fatalf("Failed to insert data: %v", err)
+		}
+
+		resp, err = http.Get(baseURL + "/datasets/sample3/changes?since=" + ec.GetContinuationToken().Token)
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+		ec, err = entityParser.LoadEntityCollection(resp.Body)
+		if err != nil {
+			t.Fatalf("Failed to parse response: %v", err)
+		}
+		if len(ec.GetEntities()) != 1 {
+			t.Fatalf("Expected 1 new entities, got %d", len(ec.GetEntities()))
+		}
+	})
+}
 
 func primeTables(t *testing.T) {
 	conn := freshTables(t) // reuse table creation from "write" tests
@@ -161,5 +348,15 @@ func primeTables(t *testing.T) {
 	}
 	if affected != 14 {
 		t.Fatalf("Expected 14 rows to be affected, got %d", affected)
+	}
+
+	// populate "sample3" table
+	result, err = conn.Exec("INSERT ALL " +
+		"   INTO sample3 (id, name) VALUES (1, 'one')" +
+		"	INTO sample3 (id, name) VALUES (2, 'two')" +
+		"	INTO sample3 (id, name) VALUES (3, 'three')" +
+		"SELECT 1 FROM dual")
+	if err != nil {
+		t.Fatalf("Failed to insert sample3 data: %v", err)
 	}
 }

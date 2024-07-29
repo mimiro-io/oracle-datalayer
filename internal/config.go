@@ -2,9 +2,9 @@ package layer
 
 import (
 	"fmt"
-	"strconv"
-
 	common "github.com/mimiro-io/common-datalayer"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -77,6 +77,15 @@ func (dl *OracleDatalayer) UpdateConfiguration(config *common.Config) common.Lay
 				logger:            dl.logger,
 				db:                dl.db,
 				datasetDefinition: dsd,
+			}
+		}
+	}
+
+	// convert all column names to uppercase
+	for _, ds := range dl.datasets {
+		if ds.datasetDefinition.OutgoingMappingConfig != nil {
+			for _, pm := range ds.datasetDefinition.OutgoingMappingConfig.PropertyMappings {
+				pm.Property = strings.ToUpper(pm.Property)
 			}
 		}
 	}
