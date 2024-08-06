@@ -6,7 +6,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"github.com/mimiro-io/oracle-datalayer/internal/conf"
+	"github.com/mimiro-io/oracle-datalayer/internal/legacy/conf"
 	go_ora "github.com/sijms/go-ora/v2"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -72,11 +72,8 @@ func (postLayer *PostLayer) PostEntities(datasetName string, entities []*Entity)
 	}
 
 	connString := postLayer.getConnString(postLayer.PostRepo.postTableDef)
-	conn, err := go_ora.NewConnection(connString)
-	if err != nil {
-		return err
-	}
-	err = conn.Open()
+	connector := go_ora.NewConnector(connString)
+	conn, err := connector.Connect(postLayer.PostRepo.ctx)
 	if err != nil {
 		return err
 	}
@@ -139,13 +136,23 @@ func (postLayer *PostLayer) PostEntities(datasetName string, entities []*Entity)
 			args[i] = s[field.FieldName]
 		}
 		if !entity.IsDeleted { //If is deleted True --> Do not store
-			_, err := conn.Exec(query, args...)
+			stmt, errStmt := conn.Prepare(query)
+			if errStmt != nil {
+				postLayer.logger.Error(errStmt)
+				return errStmt
+			}
+			_, err := stmt.Exec(args)
 			if err != nil {
 				postLayer.logger.Error(err)
 				return err
 			}
 		} else { //Should be deleted if it exists
-			_, err := conn.Exec(queryDel, args[0])
+			stmt, errStmt := conn.Prepare(queryDel)
+			if errStmt != nil {
+				postLayer.logger.Error(errStmt)
+				return errStmt
+			}
+			_, err := stmt.Exec(args[:1])
 			if err != nil {
 				postLayer.logger.Error(err)
 				return err

@@ -3,13 +3,13 @@ package web
 import (
 	"context"
 	"errors"
+	"github.com/mimiro-io/oracle-datalayer/internal/legacy/layers"
 	"io"
 	"net/http"
 	"net/url"
 
 	"github.com/bcicen/jstream"
 	"github.com/labstack/echo/v4"
-	"github.com/mimiro-io/oracle-datalayer/internal/layers"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )

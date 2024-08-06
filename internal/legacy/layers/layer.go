@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/mimiro-io/oracle-datalayer/internal/conf"
-	"github.com/mimiro-io/oracle-datalayer/internal/db"
+	"github.com/mimiro-io/oracle-datalayer/internal/legacy/conf"
+	"github.com/mimiro-io/oracle-datalayer/internal/legacy/db"
 	_ "github.com/sijms/go-ora/v2"
 	"go.uber.org/fx"
 	"reflect"
@@ -48,7 +49,11 @@ func NewLayer(lc fx.Lifecycle, cmgr *conf.ConfigurationManager, env *conf.Env) *
 	layer.Repo = &Repository{
 		ctx: context.Background(),
 	}
-	_ = layer.ensureConnection(nil) // ok with error here
+	dbErr := layer.ensureConnection(nil)
+	if dbErr != nil {
+		//layer.logger.Error("Error connecting to database: ", dbErr.Error())
+		return nil
+	}
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
@@ -214,16 +219,30 @@ func (l *Layer) er(err error) {
 
 func (l *Layer) ensureConnection(table *conf.TableMapping) error {
 	l.logger.Debug("Ensuring connection")
-	if l.cmgr.State.Digest != l.Repo.digest {
-		l.logger.Debug("Configuration has changed need to reset connection")
-		if l.Repo.DB != nil {
-			l.Repo.DB.Close() // don't really care about the error, as long as it is closed
-		}
-		db, err := l.connect(table) // errors are already logged
+	var err error
+	if l.Repo.DB == nil {
+		err = errors.New("unintitialized")
+	} else {
+		err = l.Repo.DB.Ping()
+	}
+	if err != nil || l.cmgr.State.Digest != l.Repo.digest {
 		if err != nil {
-			return err
+			l.logger.Info("Error pinging connection: ", err.Error(), ". Resetting connection")
+		} else {
+			l.logger.Debug("Configuration has changed need to reset connection")
 		}
-		l.Repo.DB = db
+		if l.Repo.DB != nil {
+			err2 := l.Repo.DB.Close()
+			if err2 != nil {
+				l.logger.Warn("Error closing old connection: ", err2.Error(), ". Ignoring and continuing")
+			}
+		}
+		newDb, err2 := l.connect(table)
+		if err2 != nil {
+			l.Repo.DB = nil
+			return err2
+		}
+		l.Repo.DB = newDb
 		l.Repo.digest = l.cmgr.State.Digest
 	}
 	return nil
@@ -240,7 +259,7 @@ func (l *Layer) connect(table *conf.TableMapping) (*sql.DB, error) {
 	}
 	err = db.Ping()
 	if err != nil {
-		l.logger.Warn(err.Error())
+		l.logger.Errorf("Could not ping db. DBURL: %s, err: %v", u, err)
 		return nil, err
 	}
 	return db, nil

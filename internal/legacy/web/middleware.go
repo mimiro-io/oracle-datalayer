@@ -2,11 +2,11 @@ package web
 
 import (
 	"context"
+	"github.com/mimiro-io/oracle-datalayer/internal/legacy/conf"
+	"github.com/mimiro-io/oracle-datalayer/internal/legacy/web/middlewares"
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	"github.com/mimiro-io/oracle-datalayer/internal/conf"
-	"github.com/mimiro-io/oracle-datalayer/internal/web/middlewares"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
