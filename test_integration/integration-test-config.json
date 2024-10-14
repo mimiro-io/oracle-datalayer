@@ -128,6 +128,60 @@
           }
         ]
       }
+    },
+    {
+      "name": "sample4",
+      "source_config": {
+        "append_mode": true,
+        "table_name": "sample4",
+        "flush_threshold": 10
+      },
+      "incoming_mapping_config": {
+        "base_uri": "http://data.sample.org/",
+        "property_mappings": [
+          {
+            "property": "id",
+            "is_identity": true,
+            "strip_ref_prefix": true,
+            "uri_value_pattern": "http://data.sample.org/things/{value}"
+          },
+          {
+            "entity_property": "http://test/prop1",
+            "property": "name"
+          },
+          {
+            "entity_property": "http://test/0",
+            "property": "0"
+          },
+          {
+            "entity_property": "http://test/14",
+            "property": "14"
+          }
+        ]
+      },
+      "outgoing_mapping_config": {
+        "base_uri": "http://data.sample.org/",
+        "map_all": true,
+        "property_mappings": [
+          {
+            "property": "ID",
+            "is_identity": true,
+            "uri_value_pattern": "http://data.sample.org/things/{value}"
+          },
+          {
+            "entity_property": "name",
+            "property": "NAME"
+          },
+          {
+            "entity_property": "http://test/0",
+            "property": "0"
+          },
+          {
+            "entity_property": "http://test/14",
+            "property": "14"
+          }
+        ]
+      }
     }
   ]
 }
