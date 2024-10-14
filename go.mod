@@ -1,6 +1,6 @@
 module github.com/mimiro-io/oracle-datalayer
 
-go 1.22.5
+go 1.22.7
 
 require (
 	github.com/DataDog/datadog-go v4.8.3+incompatible
