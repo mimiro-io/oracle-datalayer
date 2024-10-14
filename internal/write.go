@@ -169,7 +169,7 @@ func (o *OracleWriter) flush() error {
 	if o.appendMode {
 		o.batch.WriteString("SELECT 1 FROM dual")
 	} else {
-		o.batch.WriteString(")) n ON (t.id = n.id)\nWHEN MATCHED THEN UPDATE SET ")
+		o.batch.WriteString(")) n ON (t.\"ID\" = n.\"ID\")\nWHEN MATCHED THEN UPDATE SET ")
 		needComma := false
 		for _, col := range o.lastCols {
 			if col == o.idColumn {
@@ -178,7 +178,7 @@ func (o *OracleWriter) flush() error {
 			if needComma {
 				o.batch.WriteString(", ")
 			}
-			o.batch.WriteString(fmt.Sprintf("t.%s = n.%s", col, col))
+			o.batch.WriteString(fmt.Sprintf("t.\"%s\" = n.\"%s\"", strings.ToUpper(col), strings.ToUpper(col)))
 			needComma = true
 		}
 		o.batch.WriteString("\nDELETE WHERE n.\"_DELETED\"")
@@ -187,14 +187,16 @@ func (o *OracleWriter) flush() error {
 			if i != 0 {
 				o.batch.WriteString(", ")
 			}
-			o.batch.WriteString(col)
+			o.batch.WriteRune('"')
+			o.batch.WriteString(strings.ToUpper(col))
+			o.batch.WriteRune('"')
 		}
 		o.batch.WriteString(") VALUES (")
 		for i, col := range o.lastCols {
 			if i != 0 {
 				o.batch.WriteString(", ")
 			}
-			o.batch.WriteString(fmt.Sprintf("n.%s", col))
+			o.batch.WriteString(fmt.Sprintf("n.\"%s\"", strings.ToUpper(col)))
 		}
 		o.batch.WriteString(")")
 	}
