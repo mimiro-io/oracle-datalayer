@@ -132,7 +132,7 @@
     {
       "name": "sample4",
       "source_config": {
-        "append_mode": true,
+        "append_mode": false,
         "table_name": "sample4",
         "flush_threshold": 10
       },
@@ -146,7 +146,7 @@
             "uri_value_pattern": "http://data.sample.org/things/{value}"
           },
           {
-            "entity_property": "http://test/prop1",
+            "entity_property": "http://test/name",
             "property": "name"
           },
           {
