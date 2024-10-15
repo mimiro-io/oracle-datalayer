@@ -5,6 +5,9 @@
 # primes it with some test data. It then runs the Oracle datalayer service
 # with a configuration that maps the test data to a dataset.
 #
+# This assumes that you have image gvenzl/oracle-free pulled locally and named oracle-free. If not, run:
+# docker pull gvenzl/oracle-free:slim-faststart
+# docker image tag gvenzl/oracle-free:slim-faststart oracle-free
 # The startup of the Oracle database can take a minute or two, be patient.
 #
 # When ready, to test the service, run the following commands:
@@ -25,9 +28,12 @@ trap "rm -rf $mytmpdir; docker kill oracle-free" EXIT
 
 cat >${mytmpdir}/init.sql <<EOL
 connect testuser/testpassword@FREEPDB1;
-create table testtable (id number(8), name varchar2(50));
-insert into testtable values (1, 'test');
-insert into testtable values (2, 'test2');
+create table testtable (id number(8), name varchar2(50), "0" number(3), "14" number(4));
+insert into testtable values (1, 'test', 100, 200);
+insert into testtable values (2, 'test2', 300, 400);
+insert into testtable values (3, 'test2', 500, 600);
+insert into testtable values (4, 'test2', 700, 800);
+insert into testtable values (5, 'test2', 900, 1000);
 commit;
 EOL
 cat >${mytmpdir}/conf.json <<EOL
@@ -63,6 +69,14 @@ cat >${mytmpdir}/conf.json <<EOL
           {
             "entity_property": "http://test/name",
             "property": "name"
+          },
+          {
+            "entity_property": "http://test/0",
+            "property": "0"
+          },
+          {
+            "entity_property": "http://test/14",
+            "property": "14"
           }
         ]
       },
@@ -82,8 +96,16 @@ cat >${mytmpdir}/conf.json <<EOL
           {
             "entity_property": "http://test/name",
             "property": "NAME"
+          },
+          {
+            "entity_property": "http://test/0",
+            "property": "0"
+          },
+          {
+            "entity_property": "http://test/14",
+            "property": "14"
           }
-        ]
+]
       }
     }
   ]

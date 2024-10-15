@@ -66,7 +66,7 @@ func TestReadChanges(t *testing.T) {
 			t.Fatalf("Expected first entity to have ID 'http://data.sample.org/things/1', got %s", ec.GetEntities()[0].ID)
 		}
 		if len(ec.GetEntities()[0].Properties) != 7 {
-			t.Fatalf("Expected first entity to have 7 property, got %d", len(ec.GetEntities()[0].Properties))
+			t.Fatalf("Expected first entity to have 7 properties, got %d", len(ec.GetEntities()[0].Properties))
 		}
 		if ec.GetEntities()[0].Properties["http://data.sample.org/name"] != "one" {
 			t.Fatalf("Expected first entity to have property 'name' with value 'one', got %s", ec.GetEntities()[0].Properties["http://data.sample.org/name"])
@@ -358,5 +358,15 @@ func primeTables(t *testing.T) {
 		"SELECT 1 FROM dual")
 	if err != nil {
 		t.Fatalf("Failed to insert sample3 data: %v", err)
+	}
+
+	// populate "sample4" table
+	result, err = conn.Exec("INSERT ALL " +
+		"   INTO sample4 (id, name, \"0\", \"14\") VALUES (1, 'one', '12', 14)" +
+		"	INTO sample4 (id, name, \"0\", \"14\") VALUES (2, 'two', 'asdfasd', 0)" +
+		"	INTO sample4 (id, name, \"0\", \"14\")  VALUES (3, 'three', 'asdf', 0)" +
+		"SELECT 1 FROM dual")
+	if err != nil {
+		t.Fatalf("Failed to insert sample4 data: %v", err)
 	}
 }

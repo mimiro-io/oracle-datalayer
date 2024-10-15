@@ -134,6 +134,9 @@ func (d *Dataset) newIterator(mapper *common.Mapper, since string, limit int) (*
 func buildQuery(definition *common.DatasetDefinition, since string, maxSince string, limit int) (string, error) {
 	sinceCol, _ := definition.SourceConfig[SinceColumn].(string)
 	cols := "*"
+	if definition.OutgoingMappingConfig == nil {
+		return "", fmt.Errorf("outgoing mapping config is missing")
+	}
 	if !definition.OutgoingMappingConfig.MapAll {
 		cols = ""
 		for _, pm := range definition.OutgoingMappingConfig.PropertyMappings {

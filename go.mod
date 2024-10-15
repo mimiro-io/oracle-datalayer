@@ -1,6 +1,6 @@
 module github.com/mimiro-io/oracle-datalayer
 
-go 1.22.5
+go 1.22.7
 
 require (
 	github.com/DataDog/datadog-go v4.8.3+incompatible
@@ -14,7 +14,7 @@ require (
 	github.com/juliangruber/go-intersect v1.1.0
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/mimiro-io/common-datalayer v0.2.6
-	github.com/mimiro-io/entity-graph-data-model v0.7.7
+	github.com/mimiro-io/entity-graph-data-model v0.7.9
 	github.com/ory/dockertest/v3 v3.10.0
 	github.com/sijms/go-ora/v2 v2.8.19
 	github.com/spf13/viper v1.19.0
