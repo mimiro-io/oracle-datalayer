@@ -229,7 +229,6 @@ func (o *OracleWriter) flush() error {
 // the first call to upsert will start a new MERGE, and subsequent calls will more UNION SELECTs to the batch
 // when the batch is flushed, the MERGE statement will be completed and  executed
 // en DEBUG mode, the complete statements are logged in flush
-
 func (o *OracleWriter) upsert(item *RowItem) error {
 	if o.batch.Len() == 0 {
 		o.batch.WriteString("MERGE INTO ")
