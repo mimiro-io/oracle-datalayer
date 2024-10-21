@@ -157,6 +157,8 @@ func sqlVal(v any) string {
 		return fmt.Sprintf("'%s'", v)
 	case nil:
 		return "NULL"
+	case bool:
+		return fmt.Sprintf("'%t'", v)
 	default:
 		return fmt.Sprintf("%v", v)
 	}
@@ -181,7 +183,7 @@ func (o *OracleWriter) flush() error {
 			o.batch.WriteString(fmt.Sprintf("t.\"%s\" = n.\"%s\"", strings.ToUpper(col), strings.ToUpper(col)))
 			needComma = true
 		}
-		o.batch.WriteString("\nDELETE WHERE n.\"_DELETED\" = '1'")
+		o.batch.WriteString("\nDELETE WHERE n.\"_DELETED\" = 'true'")
 		o.batch.WriteString("\nWHEN NOT MATCHED THEN INSERT (")
 		for i, col := range o.lastCols {
 			if i != 0 {
@@ -250,13 +252,7 @@ func (o *OracleWriter) upsert(item *RowItem) error {
 	}
 	// append synthetic column for deleted flag, so that the merge command can delete rows
 	// The boolean was introduced in oracle 23, we need to have backwards compatability
-
-	if item.deleted {
-		o.batch.WriteString("1")
-	} else {
-		o.batch.WriteString("0")
-	}
-	//o.batch.WriteString(sqlVal(item.deleted))
+	o.batch.WriteString(sqlVal(item.deleted))
 	o.batch.WriteString(" AS \"_DELETED\"")
 	o.batch.WriteString(" FROM dual")
 	o.batchSize++
