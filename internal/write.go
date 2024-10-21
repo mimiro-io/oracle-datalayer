@@ -181,7 +181,7 @@ func (o *OracleWriter) flush() error {
 			o.batch.WriteString(fmt.Sprintf("t.\"%s\" = n.\"%s\"", strings.ToUpper(col), strings.ToUpper(col)))
 			needComma = true
 		}
-		o.batch.WriteString("\nDELETE WHERE n.\"_DELETED\"")
+		o.batch.WriteString("\nDELETE WHERE n.\"_DELETED\" = '1'")
 		o.batch.WriteString("\nWHEN NOT MATCHED THEN INSERT (")
 		for i, col := range o.lastCols {
 			if i != 0 {
@@ -229,6 +229,7 @@ func (o *OracleWriter) flush() error {
 // the first call to upsert will start a new MERGE, and subsequent calls will more UNION SELECTs to the batch
 // when the batch is flushed, the MERGE statement will be completed and  executed
 // en DEBUG mode, the complete statements are logged in flush
+
 func (o *OracleWriter) upsert(item *RowItem) error {
 	if o.batch.Len() == 0 {
 		o.batch.WriteString("MERGE INTO ")
@@ -249,7 +250,14 @@ func (o *OracleWriter) upsert(item *RowItem) error {
 		//}
 	}
 	// append synthetic column for deleted flag, so that the merge command can delete rows
-	o.batch.WriteString(sqlVal(item.deleted))
+	// The boolean was introduced in oracle 23, we need to have backwards compatability
+
+	if item.deleted {
+		o.batch.WriteString("1")
+	} else {
+		o.batch.WriteString("0")
+	}
+	//o.batch.WriteString(sqlVal(item.deleted))
 	o.batch.WriteString(" AS \"_DELETED\"")
 	o.batch.WriteString(" FROM dual")
 	o.batchSize++
