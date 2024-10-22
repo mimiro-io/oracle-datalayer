@@ -26,9 +26,9 @@ func TestPostEntitiesLatestOnly(t *testing.T) {
 		defer conn.Close()
 
 		ec := egdm.NewEntityCollection(egdm.NewNamespaceContext())
-		ec.AddEntityFromMap(map[string]any{"id": "http://test/1", "props": map[string]any{"http://test/prop1": "value1"}})
-		ec.AddEntityFromMap(map[string]any{"id": "http://test/2", "props": map[string]any{"http://test/prop1": "value2"}})
-		ec.AddEntityFromMap(map[string]any{"id": "http://test/3", "props": map[string]any{"http://test/prop1": "value3", "http://test/0": "value4", "http://test/14": 10}})
+		ec.AddEntityFromMap(map[string]any{"id": "http://test/1", "props": map[string]any{"http://test/prop1": "value1", "http://test/prop2": 2}})
+		ec.AddEntityFromMap(map[string]any{"id": "http://test/2", "props": map[string]any{"http://test/prop1": "value2", "http://test/prop2": 1}})
+		ec.AddEntityFromMap(map[string]any{"id": "http://test/3", "props": map[string]any{"http://test/prop1": "value3", "http://test/prop2": 2, "http://test/0": "value4", "http://test/14": 10}})
 		entityReader, entityWriter := io.Pipe()
 		go func() {
 			ec.WriteEntityGraphJSON(entityWriter)
@@ -43,15 +43,15 @@ func TestPostEntitiesLatestOnly(t *testing.T) {
 			t.Fatalf("Expected status code 200, got %d", resp.StatusCode)
 		}
 
-		rows, err := conn.Query("SELECT id,name FROM sample")
+		rows, err := conn.Query("SELECT id,name, numbertest FROM sample")
 		if err != nil {
 			t.Fatalf("Failed to query table: %v", err)
 		}
 		defer rows.Close()
-		var id, name string
+		var id, name, numbertest string
 		cnt := 0
 		for rows.Next() {
-			err := rows.Scan(&id, &name)
+			err := rows.Scan(&id, &name, &numbertest)
 			if err != nil {
 				t.Fatalf("Failed to scan row: %v", err)
 			}
@@ -539,7 +539,7 @@ func freshTables(t *testing.T) *sql.DB {
 	c.Exec("DROP TABLE sample3") // ignore errors, table may not exist
 	c.Exec("DROP TABLE sample4") // ignore errors, table may not exist
 
-	_, err := c.Exec("CREATE TABLE sample (id VARCHAR2(100), name VARCHAR2(100))")
+	_, err := c.Exec("CREATE TABLE sample (id VARCHAR2(100), name VARCHAR2(100), numbertest NUMBER(5,1))")
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
 	}
@@ -554,7 +554,7 @@ func freshTables(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
 	}
-	_, err = c.Exec("CREATE TABLE sample3 (id VARCHAR2(100), name VARCHAR2(100))")
+	_, err = c.Exec("CREATE TABLE sample3 (id NUMBER(5,0), name VARCHAR2(100))")
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
 	}
