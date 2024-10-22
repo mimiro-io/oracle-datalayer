@@ -50,7 +50,12 @@ func (r *RowItem) GetValue(name string) any {
 		}
 	case *sql.NullFloat64:
 		if v.Valid {
-			return v.Float64
+			if v.Float64 == float64(int64(v.Float64)) {
+				return int64(v.Float64)
+			} else {
+				return v.Float64
+			}
+
 		} else {
 			return nil
 		}

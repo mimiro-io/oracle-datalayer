@@ -30,6 +30,10 @@
           {
             "entity_property": "http://test/prop1",
             "property": "name"
+          },
+          {
+            "entity_property": "http://test/prop2",
+            "property": "numbertest"
           }
         ]
       },
