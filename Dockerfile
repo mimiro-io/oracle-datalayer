@@ -1,4 +1,4 @@
-FROM golang:1.22.7 AS build_base
+FROM golang:1.24-alpine AS build
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
@@ -9,7 +9,6 @@ COPY go.mod go.sum ./
 # Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
 RUN go mod download
 
-FROM  build_base AS builder
 # Copy the source from the current directory to the Working Directory inside the container
 COPY . .
 
@@ -17,15 +16,13 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o legacy-server cmd/oracle/main.go && \
   CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o oracle-datalayer cmd/oracle-datalayer/main.go
 
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates
+FROM gcr.io/distroless/static-debian12:nonroot
 
-WORKDIR /root/
 
-COPY --from=builder /app/oracle-datalayer .
-COPY --from=builder /app/legacy-server .
+COPY --from=build /app/oracle-datalayer /
+COPY --from=build /app/legacy-server /
 
 # Expose port 8080 to the outside world
 EXPOSE 8080
 
-CMD ["./legacy-server"]
+CMD ["/legacy-server"]
