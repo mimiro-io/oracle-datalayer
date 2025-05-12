@@ -2,14 +2,15 @@ package test_integration
 
 import (
 	"database/sql"
-	common "github.com/mimiro-io/common-datalayer"
-	egdm "github.com/mimiro-io/entity-graph-data-model"
-	layer "github.com/mimiro-io/oracle-datalayer/internal"
-	go_ora "github.com/sijms/go-ora/v2"
 	"net/http"
 	"os"
 	"testing"
 	"time"
+
+	common "github.com/mimiro-io/common-datalayer"
+	egdm "github.com/mimiro-io/entity-graph-data-model"
+	layer "github.com/mimiro-io/oracle-datalayer/internal"
+	go_ora "github.com/sijms/go-ora/v2"
 )
 
 func TestReadAllTypes(t *testing.T) {
@@ -44,11 +45,11 @@ func TestReadAllTypes(t *testing.T) {
 					}, {
 						EntityProperty: "col_number1",
 						Property:       "col_number1",
-						Datatype:       "Boolean",
+						Datatype:       "bool",
 					}, {
 						EntityProperty: "col_bool",
 						Property:       "col_bool",
-						Datatype:       "Boolean",
+						Datatype:       "bool",
 					}},
 				},
 				DatasetName: "all_types_manual_mapped",
