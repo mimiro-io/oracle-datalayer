@@ -3,7 +3,7 @@ package middlewares
 import (
 	"encoding/json"
 	"errors"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"strings"
 	"time"
@@ -34,11 +34,31 @@ type CustomClaims struct {
 	Scope string `json:"scope"`
 	Gty   string `json:"gty"`
 	Adm   bool   `json:"adm"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 func (claims CustomClaims) scopes() []string {
 	return strings.Split(claims.Scope, ",")
+}
+
+// verifyAudience preserves the jwt v3 StandardClaims.VerifyAudience(cmp, false)
+// semantics: an empty audience passes, otherwise cmp must be one of the values.
+func verifyAudience(aud jwt.ClaimStrings, cmp string) bool {
+	if len(aud) == 0 {
+		return true
+	}
+	for _, a := range aud {
+		if a == cmp {
+			return true
+		}
+	}
+	return false
+}
+
+// verifyIssuer preserves the jwt v3 StandardClaims.VerifyIssuer(cmp, false)
+// semantics: an empty issuer passes, otherwise it must equal cmp.
+func verifyIssuer(iss, cmp string) bool {
+	return iss == "" || iss == cmp
 }
 
 type Response struct {
@@ -61,9 +81,7 @@ type JSONWebKeys struct {
 // Errors
 var (
 	ErrJWTMissing = echo.NewHTTPError(http.StatusBadRequest, "missing or malformed jwt")
-	parser        = jwt.Parser{
-		ValidMethods: []string{"RS256"},
-	}
+	parser        = jwt.NewParser(jwt.WithValidMethods([]string{"RS256"}))
 )
 
 func newCache(wellknown string) cache.LoadingCache {
@@ -140,13 +158,11 @@ func JWTHandler(config *Auth0Config) echo.MiddlewareFunc {
 				issuer = config.Issuer
 			}
 
-			checkAud := claims.VerifyAudience(audience, false)
-			if !checkAud {
+			if !verifyAudience(claims.Audience, audience) {
 				err = errors.New("invalid audience")
 			}
 
-			checkIss := claims.VerifyIssuer(issuer, false)
-			if !checkIss {
+			if !verifyIssuer(claims.Issuer, issuer) {
 				err = errors.New("invalid issuer")
 			}
 
