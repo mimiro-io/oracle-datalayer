@@ -2,6 +2,7 @@ package layer
 
 import (
 	"database/sql"
+	"time"
 
 	common "github.com/mimiro-io/common-datalayer"
 	go_ora "github.com/sijms/go-ora/v2"
@@ -22,6 +23,9 @@ func newOracleDB(conf *common.Config, logger common.Logger, metrics common.Metri
 		c.str(OraclePassword),
 		nil)
 	connPool := sql.OpenDB(go_ora.NewConnector(connStr))
+	// close idle sessions before the database or the network drops them, so a
+	// write never starts on a dead session after a restart or failover
+	connPool.SetConnMaxIdleTime(5 * time.Minute)
 	perr := connPool.Ping()
 	if perr != nil {
 		connPool.Close()
