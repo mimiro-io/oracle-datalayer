@@ -90,16 +90,19 @@ See [here](./test_integration/integration-test-config.json) for a full example c
 From source:
 
 ```bash
-DATALAYER_CONFIG_PATH=/path/to/config.json go run ./cmd/oracle-datalayer/main.go
+DATALAYER_CONFIG_PATH=/path/to/config-folder go run ./cmd/oracle-datalayer/main.go
 ```
+
+`DATALAYER_CONFIG_PATH` must point to a folder. The data layer loads every `.json` file in that folder.
 
 ### run the docker container
 
 ```bash
 docker run \
   -p 8080:8080 \
-  -v /path/to/config.json:./config/config.json \
-  mimiro/oracle-datalayer oracle-datalayer
+  -e DATALAYER_CONFIG_PATH=/config \
+  -v /path/to/config.json:/config/config.json \
+  mimiro/oracle-datalayer
 ```
 
 Note that most top level configuration parameters can be provided by environment
@@ -136,15 +139,7 @@ docker run \
   -e ORACLE_DB=FREEPDB1 \
   -e ORACLE_USER=testuser \
   -e ORACLE_PASSWORD=testpassword \
-  -e DATALAYER_CONFIG_PATH=/etc/config.json \
-  -v /path/to/config.json:/etc/config.json \
-  mimiro/oracle-datalayer oracle-datalayer
+  -e DATALAYER_CONFIG_PATH=/config \
+  -v /path/to/config.json:/config/config.json \
+  mimiro/oracle-datalayer
 ```
-
-## Legacy Datalayer
-
-The repository contains an old version in `cmd/oracle` (and `internal/legacy`).
-The old version uses a different configuration format and is for backwards
-compatibility still the default version in the `mimiro/oracle-datalayer` docker image.
-
-The new version will be the default version in the docker image in future releases.

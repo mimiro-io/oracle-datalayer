@@ -12,17 +12,15 @@ RUN go mod download
 # Copy the source from the current directory to the Working Directory inside the container
 COPY . .
 
-# Build the legacy Go app
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o legacy-server cmd/oracle/main.go && \
-  CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o oracle-datalayer cmd/oracle-datalayer/main.go
+# Build the Go app
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o oracle-datalayer cmd/oracle-datalayer/main.go
 
 FROM gcr.io/distroless/static-debian12:nonroot
 
 
 COPY --from=build /app/oracle-datalayer /
-COPY --from=build /app/legacy-server /
 
 # Expose port 8080 to the outside world
 EXPOSE 8080
 
-CMD ["/legacy-server"]
+CMD ["/oracle-datalayer"]
