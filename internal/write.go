@@ -3,6 +3,7 @@ package layer
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -17,13 +18,17 @@ func (d *Dataset) FullSync(ctx context.Context, batchInfo common.BatchInfo) (com
 
 func (d *Dataset) Incremental(ctx context.Context) (common.DatasetWriter, common.LayerError) {
 	writer, err := d.newOracleWriter(ctx)
-	writer.begin()
-	return writer, err
+	if err != nil {
+		return nil, err
+	}
+	if err := writer.begin(); err != nil {
+		return nil, ErrConnection(err)
+	}
+	return writer, nil
 }
 
 func (d *Dataset) newOracleWriter(ctx context.Context) (*OracleWriter, common.LayerError) {
 	mapper := common.NewMapper(d.logger, d.datasetDefinition.IncomingMappingConfig, d.datasetDefinition.OutgoingMappingConfig)
-	db := sql.OpenDB(d.db.connector)
 	tableName, ok := d.datasetDefinition.SourceConfig[TableName].(string)
 	if !ok {
 		return nil, ErrGeneric("table name not found in source config for dataset %s", d.datasetDefinition.DatasetName)
@@ -47,7 +52,7 @@ func (d *Dataset) newOracleWriter(ctx context.Context) (*OracleWriter, common.La
 	return &OracleWriter{
 		logger:         d.logger,
 		mapper:         mapper,
-		db:             db,
+		db:             d.db.db,
 		ctx:            ctx,
 		table:          tableName,
 		flushThreshold: flushThreshold,
@@ -75,7 +80,7 @@ func (o *OracleWriter) Write(entity *egdm.Entity) common.LayerError {
 	item := &RowItem{Map: map[string]any{}}
 	err := o.mapper.MapEntityToItem(entity, item)
 	if err != nil {
-		return common.Err(err, common.LayerErrorInternal)
+		return o.fail(err)
 	}
 	// set the deleted flag, we always need this to do the right thing in upsert mode
 	item.deleted = entity.IsDeleted
@@ -89,12 +94,12 @@ func (o *OracleWriter) Write(entity *egdm.Entity) common.LayerError {
 		err = o.append(item)
 	}
 	if err != nil {
-		return common.Err(err, common.LayerErrorInternal)
+		return o.fail(err)
 	}
 	if o.batchSize >= o.flushThreshold {
 		err = o.flush()
 		if err != nil {
-			return common.Err(err, common.LayerErrorInternal)
+			return o.fail(err)
 		}
 		o.batchSize = 0
 		o.batch.Reset()
@@ -105,20 +110,26 @@ func (o *OracleWriter) Write(entity *egdm.Entity) common.LayerError {
 func (o *OracleWriter) Close() common.LayerError {
 	err := o.flush()
 	if err != nil {
-		return common.Err(err, common.LayerErrorInternal)
+		return o.fail(err)
 	}
-	if o.tx != nil {
-		err = o.tx.Commit()
-		if err != nil {
-			return common.Err(err, common.LayerErrorInternal)
-		}
-		o.logger.Debug("Transaction committed")
-	}
-	err = o.db.Close()
+	err = o.tx.Commit()
 	if err != nil {
-		return common.Err(err, common.LayerErrorInternal)
+		return o.fail(err)
 	}
+	o.logger.Debug("Transaction committed")
 	return nil
+}
+
+// fail rolls back the transaction and wraps err. The framework doesn't call
+// Close after a failed Write, so this is what releases the row locks and the
+// connection.
+func (o *OracleWriter) fail(err error) common.LayerError {
+	if rerr := o.tx.Rollback(); rerr == nil {
+		o.logger.Debug("Transaction rolled back")
+	} else if !errors.Is(rerr, sql.ErrTxDone) {
+		o.logger.Error("Failed to roll back transaction", "error", rerr)
+	}
+	return common.Err(err, common.LayerErrorInternal)
 }
 
 // append builds an insert statement the complete batch.
@@ -216,14 +227,6 @@ func (o *OracleWriter) flush() error {
 	o.logger.Debug(stmt)
 	res, err := o.tx.ExecContext(o.ctx, stmt)
 	if err != nil {
-		if o.tx != nil {
-			err2 := o.tx.Rollback()
-			if err2 != nil {
-				o.logger.Error("Failed to rollback transaction")
-				return fmt.Errorf("failed to rollback transaction: %w, underlying: %w", err2, err)
-			}
-			o.logger.Debug("Transaction rolled back")
-		}
 		return err
 	}
 	seen, err := res.RowsAffected()
@@ -271,7 +274,9 @@ func (o *OracleWriter) upsert(item *RowItem) error {
 }
 
 func (o *OracleWriter) begin() error {
-	tx, err := o.db.Begin()
+	// BeginTx ties the transaction to ctx: if ctx is canceled before Commit,
+	// database/sql rolls the transaction back.
+	tx, err := o.db.BeginTx(o.ctx, nil)
 	if err != nil {
 		return err
 	}

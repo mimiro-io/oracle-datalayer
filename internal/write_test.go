@@ -1,6 +1,11 @@
 package layer
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	common "github.com/mimiro-io/common-datalayer"
+)
 
 func TestSqlVal(t *testing.T) {
 	cases := []struct {
@@ -21,5 +26,22 @@ func TestSqlVal(t *testing.T) {
 		if got := sqlVal(c.in); got != c.want {
 			t.Errorf("sqlVal(%#v) = %s, want %s", c.in, got, c.want)
 		}
+	}
+}
+
+// TestIncrementalWithoutTableName checks that a dataset without table_name
+// fails cleanly instead of panicking.
+func TestIncrementalWithoutTableName(t *testing.T) {
+	_, _, logger := testDeps()
+	ds := &Dataset{
+		logger:            logger,
+		datasetDefinition: &common.DatasetDefinition{DatasetName: "test", SourceConfig: map[string]any{}},
+	}
+	w, err := ds.Incremental(context.Background())
+	if err == nil {
+		t.Fatal("expected an error for a dataset without table_name")
+	}
+	if w != nil {
+		t.Fatalf("expected no writer, got %v", w)
 	}
 }

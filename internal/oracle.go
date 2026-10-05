@@ -2,14 +2,16 @@ package layer
 
 import (
 	"database/sql"
-	"database/sql/driver"
+	"time"
 
 	common "github.com/mimiro-io/common-datalayer"
 	go_ora "github.com/sijms/go-ora/v2"
 )
 
+// oracleDB holds the connection pool that all datasets share. The layer closes
+// it in Stop.
 type oracleDB struct {
-	connector driver.Connector
+	db *sql.DB
 }
 
 func newOracleDB(conf *common.Config, logger common.Logger, metrics common.Metrics) (*oracleDB, error) {
@@ -20,11 +22,13 @@ func newOracleDB(conf *common.Config, logger common.Logger, metrics common.Metri
 		c.str(OracleUser),
 		c.str(OraclePassword),
 		nil)
-	connector := go_ora.NewConnector(connStr)
-	connPool := sql.OpenDB(connector)
-	defer connPool.Close()
+	connPool := sql.OpenDB(go_ora.NewConnector(connStr))
+	// close idle sessions before the database or the network drops them, so a
+	// write never starts on a dead session after a restart or failover
+	connPool.SetConnMaxIdleTime(5 * time.Minute)
 	perr := connPool.Ping()
 	if perr != nil {
+		connPool.Close()
 		return nil, ErrConnection(perr)
 	}
 	// the write path escapes string values instead of binding them, which is only
@@ -36,7 +40,7 @@ func newOracleDB(conf *common.Config, logger common.Logger, metrics common.Metri
 	} else if charset != "AL32UTF8" && charset != "UTF8" && charset != "WE8ISO8859P1" {
 		logger.Warn("database character set is not known to be safe; string values written by this layer are not reliably escaped", "charset", charset)
 	}
-	return &oracleDB{connector}, nil
+	return &oracleDB{connPool}, nil
 }
 
 type RowItem struct {
