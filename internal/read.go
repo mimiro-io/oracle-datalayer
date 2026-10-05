@@ -150,7 +150,7 @@ func buildQuery(definition *common.DatasetDefinition, since string, maxSince str
 
 	_, err := strconv.Atoi(maxSince)
 	if err != nil {
-		maxSince = fmt.Sprintf("'%s'", maxSince)
+		maxSince = sqlString(maxSince)
 	}
 
 	if sinceCol != "" {
@@ -162,7 +162,7 @@ func buildQuery(definition *common.DatasetDefinition, since string, maxSince str
 			sinceValStr := string(sinceVal)
 			_, err = strconv.Atoi(sinceValStr)
 			if err != nil {
-				sinceValStr = fmt.Sprintf("'%s'", sinceValStr)
+				sinceValStr = sqlString(sinceValStr)
 			}
 
 			q += fmt.Sprintf(" WHERE %s.%s > %s AND %s.%s <= %s",
