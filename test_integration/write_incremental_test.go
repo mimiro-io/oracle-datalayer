@@ -62,6 +62,35 @@ func TestPostEntitiesLatestOnly(t *testing.T) {
 		}
 	})
 
+	t.Run("write values containing single quotes", func(t *testing.T) {
+		conn := freshTables(t)
+		defer conn.Close()
+
+		ec := egdm.NewEntityCollection(egdm.NewNamespaceContext())
+		ec.AddEntityFromMap(map[string]any{"id": "http://test/1", "props": map[string]any{"http://test/prop1": "O'Brien", "http://test/prop2": 1}})
+		entityReader, entityWriter := io.Pipe()
+		go func() {
+			ec.WriteEntityGraphJSON(entityWriter)
+			entityWriter.Close()
+		}()
+
+		resp, err := http.Post(baseURL+"/datasets/sample/entities", "application/json", entityReader)
+		if err != nil {
+			t.Fatalf("Failed to send request: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Expected status code 200, got %d", resp.StatusCode)
+		}
+
+		var name string
+		if err := conn.QueryRow("SELECT name FROM sample").Scan(&name); err != nil {
+			t.Fatalf("Failed to query table: %v", err)
+		}
+		if name != "O'Brien" {
+			t.Fatalf("Expected name O'Brien, got %s", name)
+		}
+	})
+
 	t.Run("add entities to table with numbers as column names", func(t *testing.T) {
 		conn := freshTables(t)
 		defer conn.Close()

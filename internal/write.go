@@ -154,7 +154,7 @@ func (o *OracleWriter) append(item *RowItem) error {
 func sqlVal(v any) string {
 	switch v.(type) {
 	case string:
-		return fmt.Sprintf("'%s'", v)
+		return sqlString(v.(string))
 	case nil:
 		return "NULL"
 	case bool:
@@ -162,6 +162,11 @@ func sqlVal(v any) string {
 	default:
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+// sqlString quotes s as an SQL string literal, doubling embedded single quotes.
+func sqlString(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
 
 func (o *OracleWriter) flush() error {
