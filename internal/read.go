@@ -54,14 +54,14 @@ func (d *Dataset) newIterator(mapper *common.Mapper, since string, limit int) (*
 	}
 
 	// build the query
-	query, err := buildQuery(d.datasetDefinition, since, maxSince, limit)
-	d.logger.Debug(fmt.Sprintf("changes query for dataset %s: %s", d.Name(), query), "dataset", d.Name())
+	query, args, err := buildQuery(d.datasetDefinition, since, maxSince, limit)
+	d.logger.Debug(fmt.Sprintf("changes query for dataset %s: %s", d.Name(), query), "dataset", d.Name(), "args", args)
 	if err != nil {
 		d.logger.Error("failed to build query", "error", err)
 		return nil, ErrQuery(err)
 	}
 
-	rows, err := db.QueryContext(ctx, query)
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		d.logger.Error("failed to execute query", "error", err)
 		return nil, ErrQuery(err)
@@ -131,11 +131,11 @@ func (d *Dataset) newIterator(mapper *common.Mapper, since string, limit int) (*
 	}, nil
 }
 
-func buildQuery(definition *common.DatasetDefinition, since string, maxSince string, limit int) (string, error) {
+func buildQuery(definition *common.DatasetDefinition, since string, maxSince string, limit int) (string, []any, error) {
 	sinceCol, _ := definition.SourceConfig[SinceColumn].(string)
 	cols := "*"
 	if definition.OutgoingMappingConfig == nil {
-		return "", fmt.Errorf("outgoing mapping config is missing")
+		return "", nil, fmt.Errorf("outgoing mapping config is missing")
 	}
 	if !definition.OutgoingMappingConfig.MapAll {
 		cols = ""
@@ -148,35 +148,35 @@ func buildQuery(definition *common.DatasetDefinition, since string, maxSince str
 	}
 	q := "SELECT " + cols + " FROM " + definition.SourceConfig[TableName].(string)
 
-	_, err := strconv.Atoi(maxSince)
-	if err != nil {
-		maxSince = sqlString(maxSince)
+	// bind since values instead of inlining them: escaping can't be made safe for
+	// every database charset. Integers keep binding as numbers, as before.
+	bindVal := func(s string) any {
+		if n, err := strconv.Atoi(s); err == nil {
+			return n
+		}
+		return s
 	}
-
+	var args []any
 	if sinceCol != "" {
 		if since != "" {
 			sinceVal, err := base64.URLEncoding.DecodeString(since)
 			if err != nil {
-				return "", fmt.Errorf("failed to decode since token %s", since)
+				return "", nil, fmt.Errorf("failed to decode since token %s", since)
 			}
-			sinceValStr := string(sinceVal)
-			_, err = strconv.Atoi(sinceValStr)
-			if err != nil {
-				sinceValStr = sqlString(sinceValStr)
-			}
-
-			q += fmt.Sprintf(" WHERE %s.%s > %s AND %s.%s <= %s",
-				definition.SourceConfig[TableName], definition.SourceConfig[SinceColumn], sinceValStr,
-				definition.SourceConfig[TableName], definition.SourceConfig[SinceColumn], maxSince)
+			q += fmt.Sprintf(" WHERE %s.%s > :1 AND %s.%s <= :2",
+				definition.SourceConfig[TableName], definition.SourceConfig[SinceColumn],
+				definition.SourceConfig[TableName], definition.SourceConfig[SinceColumn])
+			args = []any{bindVal(string(sinceVal)), bindVal(maxSince)}
 		} else {
-			q += fmt.Sprintf(" WHERE %s.%s <= %s",
-				definition.SourceConfig[TableName], definition.SourceConfig[SinceColumn], maxSince)
+			q += fmt.Sprintf(" WHERE %s.%s <= :1",
+				definition.SourceConfig[TableName], definition.SourceConfig[SinceColumn])
+			args = []any{bindVal(maxSince)}
 		}
 	}
 	if limit != 0 {
 		q += " FETCH FIRST " + strconv.Itoa(limit) + " ROWS ONLY"
 	}
-	return q, nil
+	return q, args, nil
 }
 
 type dbIterator struct {
