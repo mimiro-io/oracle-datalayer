@@ -2,6 +2,7 @@ package layer
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	common "github.com/mimiro-io/common-datalayer"
@@ -43,5 +44,36 @@ func TestIncrementalWithoutTableName(t *testing.T) {
 	}
 	if w != nil {
 		t.Fatalf("expected no writer, got %v", w)
+	}
+}
+
+func TestQuoteOracleTableRef(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"sample2", `"SAMPLE2"`},
+		{"STORFE.PROGNOSIS14", `"STORFE"."PROGNOSIS14"`},
+		{"testuser.sample2", `"TESTUSER"."SAMPLE2"`},
+		{"  spaced.col  ", `"SPACED"."COL"`},
+	}
+	for _, tc := range cases {
+		if got := quoteOracleTableRef(tc.in); got != tc.want {
+			t.Errorf("quoteOracleTableRef(%q) = %s, want %s", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestAppendUsesQuotedSchemaTable(t *testing.T) {
+	// INSERT ALL must quote schema and table separately (#28).
+	o := &OracleWriter{table: "STORFE.PROGNOSIS14"}
+	item := &RowItem{Columns: []string{"id"}, Values: []any{1}}
+	if err := o.append(item); err != nil {
+		t.Fatal(err)
+	}
+	got := o.batch.String()
+	want := `INTO "STORFE"."PROGNOSIS14" (`
+	if !strings.Contains(got, want) {
+		t.Fatalf("append SQL missing %q in:\n%s", want, got)
+	}
+	if strings.Contains(got, `"STORFE.PROGNOSIS14"`) {
+		t.Fatalf("append still quotes the whole schema.table as one identifier:\n%s", got)
 	}
 }

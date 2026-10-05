@@ -139,9 +139,9 @@ func (o *OracleWriter) append(item *RowItem) error {
 	if o.batch.Len() == 0 {
 		o.batch.WriteString("INSERT ALL\n")
 	}
-	o.batch.WriteString("\tINTO \"")
-	o.batch.WriteString(strings.ToUpper(o.table))
-	o.batch.WriteString("\" (")
+	o.batch.WriteString("\tINTO ")
+	o.batch.WriteString(quoteOracleTableRef(o.table))
+	o.batch.WriteString(" (")
 	for i, k := range item.Columns {
 		if i != 0 {
 			o.batch.WriteString(", ")
@@ -160,6 +160,25 @@ func (o *OracleWriter) append(item *RowItem) error {
 	o.batch.WriteString(")\n")
 	o.batchSize++
 	return nil
+}
+
+// quoteOracleTableRef uppercases and quotes a table reference for Oracle.
+// A schema-qualified name (STORFE.PROGNOSIS14) becomes "STORFE"."PROGNOSIS14"
+// so Oracle does not treat the dot as part of a single identifier (#28).
+func quoteOracleTableRef(name string) string {
+	parts := strings.Split(strings.TrimSpace(name), ".")
+	quoted := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		quoted = append(quoted, `"`+strings.ToUpper(part)+`"`)
+	}
+	if len(quoted) == 0 {
+		return `""`
+	}
+	return strings.Join(quoted, ".")
 }
 
 func sqlVal(v any) string {
