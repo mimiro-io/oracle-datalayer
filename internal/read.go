@@ -31,7 +31,7 @@ func (d *Dataset) Entities(from string, limit int) (common.EntityIterator, commo
 
 func (d *Dataset) newIterator(mapper *common.Mapper, since string, limit int) (*dbIterator, common.LayerError) {
 	sinceCol, _ := d.datasetDefinition.SourceConfig[SinceColumn].(string)
-	db := sql.OpenDB(d.db.connector)
+	db := d.db.db
 	ctx := context.Background() // no timeout because we want to support long running stream operations
 
 	var maxSince, nextToken string
@@ -68,11 +68,13 @@ func (d *Dataset) newIterator(mapper *common.Mapper, since string, limit int) (*
 	}
 	cts, err := rows.ColumnTypes()
 	if err != nil {
+		rows.Close()
 		d.logger.Error("failed to get column types", "error", err)
 		return nil, ErrQuery(err)
 	}
 	columns, err := rows.Columns()
 	if err != nil {
+		rows.Close()
 		d.logger.Error("failed to get columns", "error", err)
 		return nil, ErrQuery(err)
 	}
@@ -96,6 +98,7 @@ func (d *Dataset) newIterator(mapper *common.Mapper, since string, limit int) (*
 		} else {
 			st := ct.ScanType()
 			if st == nil {
+				rows.Close()
 				d.logger.Error("no scan type for column", "column", ct.Name())
 				return nil, ErrQuery(fmt.Errorf("no scan type for column %s", ct.Name()))
 			}
@@ -121,7 +124,6 @@ func (d *Dataset) newIterator(mapper *common.Mapper, since string, limit int) (*
 		since:        since,
 		limit:        limit,
 		mapper:       mapper,
-		db:           db,
 		rows:         rows,
 		currentToken: nextToken,
 		colTypes:     cts,
@@ -182,7 +184,6 @@ func buildQuery(definition *common.DatasetDefinition, since string, maxSince str
 type dbIterator struct {
 	logger       common.Logger
 	mapper       *common.Mapper
-	db           *sql.DB
 	rows         *sql.Rows
 	since        string
 	currentToken string
@@ -250,10 +251,6 @@ func (it *dbIterator) Close() common.LayerError {
 	err := it.rows.Close()
 	if err != nil {
 		return common.Err(err, common.LayerErrorInternal)
-	}
-	err = it.db.Close()
-	if err != nil {
-		return ErrConnection(err)
 	}
 	return nil
 }

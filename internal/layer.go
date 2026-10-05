@@ -30,8 +30,7 @@ func (d *Dataset) Name() string {
 }
 
 func (dl *OracleDatalayer) Stop(ctx context.Context) error {
-	// nothing to do for now
-	return nil
+	return dl.db.db.Close()
 }
 
 func (dl *OracleDatalayer) Dataset(dataset string) (common.Dataset, common.LayerError) {

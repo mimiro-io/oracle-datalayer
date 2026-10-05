@@ -23,7 +23,6 @@ func (d *Dataset) Incremental(ctx context.Context) (common.DatasetWriter, common
 
 func (d *Dataset) newOracleWriter(ctx context.Context) (*OracleWriter, common.LayerError) {
 	mapper := common.NewMapper(d.logger, d.datasetDefinition.IncomingMappingConfig, d.datasetDefinition.OutgoingMappingConfig)
-	db := sql.OpenDB(d.db.connector)
 	tableName, ok := d.datasetDefinition.SourceConfig[TableName].(string)
 	if !ok {
 		return nil, ErrGeneric("table name not found in source config for dataset %s", d.datasetDefinition.DatasetName)
@@ -47,7 +46,7 @@ func (d *Dataset) newOracleWriter(ctx context.Context) (*OracleWriter, common.La
 	return &OracleWriter{
 		logger:         d.logger,
 		mapper:         mapper,
-		db:             db,
+		db:             d.db.db,
 		ctx:            ctx,
 		table:          tableName,
 		flushThreshold: flushThreshold,
@@ -113,10 +112,6 @@ func (o *OracleWriter) Close() common.LayerError {
 			return common.Err(err, common.LayerErrorInternal)
 		}
 		o.logger.Debug("Transaction committed")
-	}
-	err = o.db.Close()
-	if err != nil {
-		return common.Err(err, common.LayerErrorInternal)
 	}
 	return nil
 }
