@@ -11,6 +11,7 @@ func TestSqlVal(t *testing.T) {
 		{"O'Brien", "'O''Brien'"},
 		{"x' OR '1'='1", "'x'' OR ''1''=''1'"},
 		{"''", "''''''"},
+		{"\xC3'", "'\uFFFD'''"},
 		{nil, "NULL"},
 		{true, "'true'"},
 		{42, "42"},

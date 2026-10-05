@@ -23,6 +23,8 @@ func TestBuildQuerySince(t *testing.T) {
 			"SELECT * FROM t WHERE t.c > 'abc' AND t.c <= 'abd'"},
 		{"injection in since", token("x' OR '1'='1"), "100",
 			"SELECT * FROM t WHERE t.c > 'x'' OR ''1''=''1' AND t.c <= 100"},
+		{"invalid utf8 before quote", token("\xC3' OR 1=1 --"), "100",
+			"SELECT * FROM t WHERE t.c > '\uFFFD'' OR 1=1 --' AND t.c <= 100"},
 		{"quote in maxSince", "", "it's",
 			"SELECT * FROM t WHERE t.c <= 'it''s'"},
 	}

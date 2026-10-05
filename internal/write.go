@@ -165,8 +165,10 @@ func sqlVal(v any) string {
 }
 
 // sqlString quotes s as an SQL string literal, doubling embedded single quotes.
+// Invalid UTF-8 is replaced first, because Oracle reads an incomplete multibyte
+// sequence as part of the next character, which would swallow an escaping quote.
 func sqlString(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+	return "'" + strings.ReplaceAll(strings.ToValidUTF8(s, "\uFFFD"), "'", "''") + "'"
 }
 
 func (o *OracleWriter) flush() error {
