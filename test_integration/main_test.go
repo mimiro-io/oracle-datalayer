@@ -3,9 +3,11 @@ package test_integration
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	common "github.com/mimiro-io/common-datalayer"
 	layer "github.com/mimiro-io/oracle-datalayer/internal"
@@ -118,7 +120,15 @@ func testServer() *common.ServiceRunner {
 		WithConfigLocation(".").
 		WithEnrichConfig(layer.EnvOverrides)
 	sr.Start()
-	return sr
+	// Start serves http in a goroutine, so wait until the server answers
+	for range 100 {
+		if resp, err := http.Get(baseURL + "/health"); err == nil {
+			resp.Body.Close()
+			return sr
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	panic("test server did not start on " + baseURL)
 }
 
 const baseURL = "http://localhost:11694"
