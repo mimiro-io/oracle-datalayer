@@ -27,6 +27,14 @@ func newOracleDB(conf *common.Config, logger common.Logger, metrics common.Metri
 	if perr != nil {
 		return nil, ErrConnection(perr)
 	}
+	// the write path escapes string values instead of binding them, which is only
+	// reliable when the database charset is UTF-8
+	var charset string
+	if err := connPool.QueryRow("SELECT value FROM nls_database_parameters WHERE parameter = 'NLS_CHARACTERSET'").Scan(&charset); err != nil {
+		logger.Warn("could not read database character set", "error", err)
+	} else if charset != "AL32UTF8" && charset != "UTF8" {
+		logger.Warn("database character set is not UTF-8; string values written by this layer are not reliably escaped", "charset", charset)
+	}
 	return &oracleDB{connector}, nil
 }
 
