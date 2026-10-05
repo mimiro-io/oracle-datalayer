@@ -154,7 +154,7 @@ func (o *OracleWriter) append(item *RowItem) error {
 func sqlVal(v any) string {
 	switch v.(type) {
 	case string:
-		return fmt.Sprintf("'%s'", v)
+		return sqlString(v.(string))
 	case nil:
 		return "NULL"
 	case bool:
@@ -162,6 +162,16 @@ func sqlVal(v any) string {
 	default:
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+// sqlString quotes s as an SQL string literal, doubling embedded single quotes.
+// Invalid UTF-8 is replaced first, because Oracle reads an incomplete multibyte
+// sequence as part of the next character, which would swallow an escaping quote.
+// This is only reliable on UTF-8 and WE8ISO8859P1 database charsets: on others,
+// the driver can map look-alike characters such as U+FF07 to a single quote
+// after escaping.
+func sqlString(s string) string {
+	return "'" + strings.ReplaceAll(strings.ToValidUTF8(s, "\uFFFD"), "'", "''") + "'"
 }
 
 func (o *OracleWriter) flush() error {
