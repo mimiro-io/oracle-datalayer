@@ -2,6 +2,7 @@ package layer
 
 import (
 	"database/sql"
+	"slices"
 	"time"
 
 	common "github.com/mimiro-io/common-datalayer"
@@ -80,8 +81,12 @@ func (r *RowItem) GetValue(name string) any {
 }
 
 func (r *RowItem) SetValue(name string, value any) {
-	r.Columns = append(r.Columns, name)
-	r.Values = append(r.Values, value)
+	if i := slices.Index(r.Columns, name); i >= 0 {
+		r.Values[i] = value
+	} else {
+		r.Columns = append(r.Columns, name)
+		r.Values = append(r.Values, value)
+	}
 	r.Map[name] = value
 }
 
