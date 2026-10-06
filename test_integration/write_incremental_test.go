@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"reflect"
+	"strings"
 	"testing"
 
 	egdm "github.com/mimiro-io/entity-graph-data-model"
@@ -88,6 +90,59 @@ func TestPostEntitiesLatestOnly(t *testing.T) {
 		}
 		if name != "O'Brien" {
 			t.Fatalf("Expected name O'Brien, got %s", name)
+		}
+	})
+
+	t.Run("write entities with different properties in one batch", func(t *testing.T) {
+		conn := freshTables(t)
+		defer conn.Close()
+
+		post := func(body string) {
+			resp, err := http.Post(baseURL+"/datasets/sample4/entities", "application/json", strings.NewReader(body))
+			if err != nil {
+				t.Fatalf("Failed to send request: %v", err)
+			}
+			resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("Expected status code 200, got %d", resp.StatusCode)
+			}
+		}
+		row := func(id, props string) string {
+			return `,{"id":"http://test/` + id + `","props":{` + props + `}}`
+		}
+		// stored returns name and "0" per id, with "" for NULL
+		stored := func() map[string][2]string {
+			rows, err := conn.Query(`SELECT id, name, "0" FROM sample4`)
+			if err != nil {
+				t.Fatalf("Failed to query table: %v", err)
+			}
+			defer rows.Close()
+			got := map[string][2]string{}
+			for rows.Next() {
+				var id string
+				var name, zero sql.NullString
+				if err := rows.Scan(&id, &name, &zero); err != nil {
+					t.Fatalf("Failed to scan row: %v", err)
+				}
+				got[id] = [2]string{name.String, zero.String}
+			}
+			return got
+		}
+		ctx := `[{"id":"@context","namespaces":{}}`
+
+		// same column count, different columns
+		post(ctx + row("1", `"http://test/name":"n1"`) + row("2", `"http://test/0":"z2"`) + row("3", `"http://test/name":"n3"`) + "]")
+		want := map[string][2]string{"1": {"n1", ""}, "2": {"", "z2"}, "3": {"n3", ""}}
+		if got := stored(); !reflect.DeepEqual(got, want) {
+			t.Fatalf("Expected rows %v, got %v", want, got)
+		}
+
+		// different column counts
+		post(ctx + row("4", `"http://test/name":"n4","http://test/0":"z4"`) + row("5", `"http://test/0":"z5"`) + "]")
+		want["4"] = [2]string{"n4", "z4"}
+		want["5"] = [2]string{"", "z5"}
+		if got := stored(); !reflect.DeepEqual(got, want) {
+			t.Fatalf("Expected rows %v, got %v", want, got)
 		}
 	})
 

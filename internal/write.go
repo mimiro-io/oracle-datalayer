@@ -49,6 +49,10 @@ func (d *Dataset) newOracleWriter(ctx context.Context) (*OracleWriter, common.La
 			break
 		}
 	}
+	var columns []string
+	for _, m := range d.datasetDefinition.IncomingMappingConfig.PropertyMappings {
+		columns = append(columns, m.Property)
+	}
 	return &OracleWriter{
 		logger:         d.logger,
 		mapper:         mapper,
@@ -58,6 +62,7 @@ func (d *Dataset) newOracleWriter(ctx context.Context) (*OracleWriter, common.La
 		flushThreshold: flushThreshold,
 		appendMode:     d.datasetDefinition.SourceConfig[AppendMode] == true,
 		idColumn:       idColumn,
+		columns:        columns,
 	}, nil
 }
 
@@ -69,6 +74,7 @@ type OracleWriter struct {
 	tx             *sql.Tx
 	table          string
 	idColumn       string
+	columns        []string
 	batch          strings.Builder
 	lastCols       []string
 	batchSize      int
@@ -77,7 +83,13 @@ type OracleWriter struct {
 }
 
 func (o *OracleWriter) Write(entity *egdm.Entity) common.LayerError {
+	// start with every mapped column set to NULL, so all rows in a batch have the
+	// same columns in the same order: the mapper leaves out properties an entity
+	// doesn't have, and the batched statements pair values by position
 	item := &RowItem{Map: map[string]any{}}
+	for _, col := range o.columns {
+		item.SetValue(col, nil)
+	}
 	err := o.mapper.MapEntityToItem(entity, item)
 	if err != nil {
 		return o.fail(err)

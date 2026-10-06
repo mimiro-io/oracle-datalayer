@@ -103,6 +103,18 @@ func TestFailedWritesReleaseLocks(t *testing.T) {
 		}
 	})
 
+	t.Run("invalid JSON after a flushed batch", func(t *testing.T) {
+		// ten rows are flushed inside Write, then the body fails to parse. The
+		// framework returns 400 without calling Close, so only the end of the
+		// request's context rolls the transaction back.
+		if status := postSample(t, client, sampleBody("failed", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10")+",{"); status != http.StatusBadRequest {
+			t.Fatalf("Expected status code 400, got %d", status)
+		}
+		if status := postSample(t, client, sampleBody("after", "2")+"]"); status != http.StatusOK {
+			t.Fatalf("Expected status code 200, got %d", status)
+		}
+	})
+
 	var failed int
 	if err := conn.QueryRow("SELECT COUNT(*) FROM sample WHERE name = 'failed'").Scan(&failed); err != nil {
 		t.Fatalf("Failed to query table: %v", err)
