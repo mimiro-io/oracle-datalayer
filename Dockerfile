@@ -1,4 +1,4 @@
-FROM golang:1.25-alpine AS build
+FROM golang:1.27-alpine AS build
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
@@ -16,6 +16,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o oracle-datalayer cmd/oracle-datalayer/main.go
 
 FROM gcr.io/distroless/static-debian12:nonroot
+USER nonroot
 
 
 COPY --from=build /app/oracle-datalayer /
